@@ -6,6 +6,7 @@ const upload = multer(); // Memory storage for Supabase
 const { 
     createTender, 
     getAllTenders, 
+    getTenderFileUrl,
     uploadTenderDocuments 
 } = require('../controllers/tenderController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
@@ -24,4 +25,5 @@ router.post(
     uploadTenderDocuments
 );
 
+router.get('/download', protect, getTenderFileUrl);
 module.exports = router;

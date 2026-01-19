@@ -42,59 +42,115 @@ exports.register = async (req, res) => {
 };
 
 // 2. LOGIN USER
+// 2. UNIFIED LOGIN (Handles Email or Flat No)
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, flat_no, password } = req.body;
   const ip_address = req.ip || req.headers['x-forwarded-for'];
   const device_info = req.headers['user-agent'];
 
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
+    let user = null;
+    let residentProfile = null;
 
-    // 1. Record Login Attempt (Table: login_attempts)
-    const isMatch = user ? await bcrypt.compare(password, user.password_hash) : false;
+    // --- STEP 1: FIND THE USER ---
+    if (flat_no) {
+      // Logic for RESIDENTS: Find via residents table using flat_no
+      const { data: resident, error: resError } = await supabase
+        .from('residents')
+        .select('status, user_id, users (*)')
+        .eq('flat_no', flat_no)
+        .single();
+
+      if (resError || !resident) {
+        return res.status(401).json({ message: "Invalid Flat Number" });
+      }
+
+      // Check if Admin has approved the resident
+      if (resident.status !== 'APPROVED') {
+        return res.status(403).json({ message: "Resident account pending admin approval." });
+      }
+
+      user = resident.users;
+      residentProfile = resident;
+    } else if (email) {
+      // Logic for ADMIN/SUPPLIER/ACCOUNTANT: Find via email
+      const { data, error: emailError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (emailError || !data) {
+        return res.status(401).json({ message: "Invalid Email" });
+      }
+      user = data;
+    } else {
+      return res.status(400).json({ message: "Please provide Email or Flat Number" });
+    }
+
+    // --- STEP 2: VERIFY PASSWORD ---
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     
+    // Record Attempt in logs
     await supabase.from('login_attempts').insert([{
-      email,
+      email: email || `FLAT_${flat_no}`,
       ip_address,
-      success: !!(user && isMatch),
+      success: isMatch,
       attempt_time: new Date()
     }]);
 
-    if (error || !user || !isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid Password" });
     }
 
-    // 2. Standard Token Logic
-    const accessToken = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '30d' });
+    // Double check active status for non-residents
+    if (!user.is_active) {
+      return res.status(403).json({ message: "User account is deactivated." });
+    }
 
-    // 3. Update Session with Metadata (Table: sessions)
+    // --- STEP 3: GENERATE TOKENS ---
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '1d' } // Extended for better UX
+    );
+    
+    const refreshToken = jwt.sign(
+      { id: user.id }, 
+      process.env.REFRESH_TOKEN_SECRET, 
+      { expiresIn: '30d' }
+    );
+
+    // --- STEP 4: MANAGE SESSION ---
     await supabase.from('sessions').insert([{
       user_id: user.id,
-      refresh_token_hash: refreshToken,
+      refresh_token_hash: refreshToken, // In production, hash this!
       ip_address,
       device_info,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     }]);
 
-    // 4. Record Audit Log (Table: audit_logs)
-    await supabase.from('audit_logs').insert([{
-      user_id: user.id,
-      action: 'USER_LOGIN',
-      entity_type: 'USER',
-      entity_id: user.id,
-      ip_address
-    }]);
-
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
-    res.status(200).json({ success: true, accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    res.cookie('refreshToken', refreshToken, { 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: 'Strict' 
+    });
+    
+    // --- STEP 5: SUCCESS RESPONSE ---
+    res.status(200).json({ 
+      success: true, 
+      accessToken, 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role,
+        flat_no: flat_no || null 
+      } 
+    });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Login Error:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 // ... existing register and login code ...
@@ -219,5 +275,35 @@ exports.logout = async (req, res) => {
     res.status(200).json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+exports.residentLogin = async (req, res) => {
+  try {
+    const { flat_no, password } = req.body;
+
+    // 1. Find resident by Flat No
+    const { data: resident, error: resError } = await supabase
+      .from('residents')
+      .select('user_id, status, users(password_hash, role)')
+      .eq('flat_no', flat_no)
+      .single();
+
+    if (resError || !resident) return res.status(401).json({ message: "Invalid Flat Number" });
+
+    // 2. Check if Approved
+    if (resident.status !== 'APPROVED') {
+      return res.status(403).json({ message: "Your account is pending admin approval." });
+    }
+
+    // 3. Verify Password
+    const isMatch = await bcrypt.compare(password, resident.users.password_hash);
+    if (!isMatch) return res.status(401).json({ message: "Invalid Password" });
+
+    // 4. Generate Token (standard JWT logic)
+    const token = jwt.sign({ id: resident.user_id, role: resident.users.role }, process.env.JWT_SECRET);
+
+    res.status(200).json({ success: true, token });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

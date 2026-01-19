@@ -7,6 +7,13 @@ const morgan = require('morgan');
 
 // Import Database Config (just to ensure connection works on startup)
 const supabase = require('./config/supabase');
+const corsOptions = {
+  origin: 'http://localhost:5173', // Your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true, // Required if you are sending cookies/sessions
+};
+
 
 // Import Routes (We will create these in the next step)
 const authRoutes = require('./routes/auth');
@@ -18,6 +25,9 @@ const awardRoutes = require('./routes/awards');
 const vendorRoutes = require('./routes/vendorRoutes');
 const milestoneRoutes = require('./routes/milestoneRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const supplierRoutes = require('./routes/suppliers');
+const residentsRoutes = require('./routes/residents');
+const communityRoutes=require('./routes/communityRoutes');
 // const supplierRoutes = require('./routes/suppliers'); // Add later
 
 const app = express();
@@ -26,7 +36,7 @@ const app = express();
 // 1. Middleware
 // =======================
 app.use(helmet()); // Security headers
-app.use(cors());   // Allow frontend requests
+app.use(cors(corsOptions));  // Allow frontend requests
 app.use(morgan('dev')); // Logger
 app.use(express.json()); // Parse JSON bodies (important for POST requests)
 app.use(express.urlencoded({ extended: true }));
@@ -47,10 +57,12 @@ app.use('/api/tenders', tenderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/bids', bidRoutes);
 app.use('/api/awards', awardRoutes);
-
+app.use('/api/suppliers', supplierRoutes);
 app.use('/api/milestones', milestoneRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/evaluations', evaluationRoutes);
+app.use('/api/residents', residentsRoutes);
+app.use('/api/community', communityRoutes);
 // app.use('/api/suppliers', supplierRoutes);
 
 // =======================

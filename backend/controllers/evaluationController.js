@@ -13,7 +13,7 @@ exports.viewTechnicalBid = async (req, res) => {
 
     if (dbError) throw dbError;
 
-    // Create a Signed URL valid for 30 minutes (1800 seconds)
+    // Create a Signed URL valid for 30 minutes
     const { data, error: storageError } = await supabase.storage
       .from('technical-bids')
       .createSignedUrl(doc.file_path, 1800);
@@ -26,18 +26,46 @@ exports.viewTechnicalBid = async (req, res) => {
   }
 };
 
-// 2. Submit the Technical Score
+// 2. Submit the Technical Score (Admin acting as Evaluator)
 exports.submitTechnicalScore = async (req, res) => {
   try {
     const { bid_id, score, remarks } = req.body;
+    
+    // Identity: req.user is populated by your 'protect' middleware
+    const adminUserId = req.user.id; 
 
-    const { error } = await supabase
+    // Step A: Ensure Admin exists in 'evaluators' table to satisfy FK constraint
+    let { data: evaluator, error: evalError } = await supabase
+      .from('evaluators')
+      .select('id')
+      .eq('user_id', adminUserId)
+      .single();
+
+    if (!evaluator) {
+      // Auto-register Admin as an evaluator if missing
+      const { data: newEval, error: createError } = await supabase
+        .from('evaluators')
+        .insert([{ user_id: adminUserId, specialization: 'ADMIN_CHIEF_EVALUATOR' }])
+        .select()
+        .single();
+      
+      if (createError) throw createError;
+      evaluator = newEval;
+    }
+
+    // Step B: Insert into technical_evaluations table
+    const { error: insertError } = await supabase
       .from('technical_evaluations')
-      .insert([{ bid_id, score, remarks }]);
+      .insert([{ 
+        bid_id, 
+        evaluator_id: evaluator.id, 
+        score, 
+        remarks 
+      }]);
 
-    if (error) throw error;
+    if (insertError) throw insertError;
 
-    // Update the main bid status based on the score
+    // Step C: Update bid status (Qualify if score >= 70)
     const status = score >= 70 ? 'TECH_QUALIFIED' : 'TECH_REJECTED';
     
     await supabase
@@ -45,17 +73,21 @@ exports.submitTechnicalScore = async (req, res) => {
       .update({ status: status })
       .eq('id', bid_id);
 
-    res.status(200).json({ success: true, message: `Evaluation complete. Status: ${status}` });
+    res.status(200).json({ 
+      success: true, 
+      message: `Evaluation completed by Admin. Status: ${status}` 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 // 3. Unlock and View Financial Bid (The Second Envelope)
 exports.viewFinancialBid = async (req, res) => {
   try {
     const { bid_id } = req.params;
 
-    // First, verify if the bid is TECH_QUALIFIED
+    // Verify if the bid is TECH_QUALIFIED
     const { data: bid, error: bidError } = await supabase
       .from('bids')
       .select('status')
@@ -64,15 +96,14 @@ exports.viewFinancialBid = async (req, res) => {
 
     if (bidError || !bid) throw new Error("Bid not found");
 
-    // BLOCK access if the technical evaluation isn't passed
     if (bid.status !== 'TECH_QUALIFIED') {
       return res.status(403).json({ 
         success: false, 
-        message: "Financial envelope is LOCKED. Supplier must pass Technical Evaluation first." 
+        message: "Financial envelope is LOCKED. Bid must pass Technical Evaluation first." 
       });
     }
 
-    // If qualified, get the financial file path
+    // Get financial path and amount
     const { data: finDoc, error: dbError } = await supabase
       .from('bid_financials')
       .select('encrypted_file_path, total_amount')
@@ -81,7 +112,7 @@ exports.viewFinancialBid = async (req, res) => {
 
     if (dbError) throw dbError;
 
-    // Generate Signed URL for the private 'financial-bids' bucket
+    // Generate Signed URL for the private bucket
     const { data: urlData, error: storageError } = await supabase.storage
       .from('financial-bids')
       .createSignedUrl(finDoc.encrypted_file_path, 1800);

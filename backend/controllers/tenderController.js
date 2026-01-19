@@ -109,16 +109,55 @@ exports.uploadTenderDocuments = async (req, res) => {
   }
 };
 // 2. Get All Tenders (ADD THIS BACK)
+// 2. Get All Tenders (UPDATED TO INCLUDE DOCUMENTS)
 exports.getAllTenders = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('tenders')
-      .select('*')
+      .select(`
+        *,
+        tender_documents (
+          id,
+          document_type,
+          file_path
+        ),
+        tender_timeline (
+          submission_deadline,
+          opening_date,
+          clarification_deadline
+        ),
+        tender_eligibility_criteria (
+          min_experience_years,
+          min_turnover,
+          required_certifications
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    res.status(200).json({ success: true, count: data.length, data });
+    res.status(200).json({ 
+      success: true, 
+      count: data.length, 
+      data 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+exports.getTenderFileUrl = async (req, res) => {
+  try {
+    const { path } = req.query; 
+
+    // Logic: If the path accidentally includes the bucket name, strip it
+    const cleanPath = path.replace('tender-assets/', '');
+
+    const { data, error } = await supabase.storage
+      .from('tender-assets')
+      .createSignedUrl(cleanPath, 60); // Link valid for 60 seconds
+
+    if (error) throw error;
+    res.status(200).json({ success: true, url: data.signedUrl });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
