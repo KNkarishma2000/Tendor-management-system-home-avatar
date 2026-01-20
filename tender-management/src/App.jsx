@@ -9,7 +9,7 @@ import Login from './pages/auth/Login';
 import LoginSupplier from './pages/auth/LoginSupplier';
 import RegisterResident from './pages/auth/ResidentRegister';
 import RegisterSupplier from './pages/auth/SupplierRegister';
-import ResidentManagement from './pages/admin/resident';
+import ResidentManagement from './pages/admin/Resident';
 
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import Carnivals from './pages/admin/Carnivals';
