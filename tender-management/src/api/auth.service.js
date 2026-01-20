@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://lightgrey-frog-375280.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'https://olive-eel-303651.hostingersite.com/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -199,3 +199,4 @@ export const vendorAPI = {
 };
 
 export default apiClient;
+
