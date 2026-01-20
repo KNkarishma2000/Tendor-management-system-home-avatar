@@ -16,6 +16,8 @@ import Carnivals from './pages/admin/Carnivals';
 import NoticeManagement from './pages/admin/NoticeManagement';
 import TenderManagement from './pages/admin/TenderManagement';
 import TenderDetails from './pages/admin/TenderDetails';
+import CreateTender from './pages/admin/CreateTender';
+import SupplierDirectory from './pages/admin/SupplierManagement';
 
 
 
@@ -38,8 +40,14 @@ function App() {
         <Route path="carnivals" element={<Carnivals />} />
         <Route path="residents" element={<ResidentManagement />} /> 
         <Route path="notices" element={<NoticeManagement />} /> 
+         <Route path="suppliers" element={<SupplierDirectory />} /> 
+         // Example Route setup
+<Route path="/admin/supplier/:id" element={<SupplierProfilePage />} />
            <Route path="tenders" element={<TenderManagement />} /> 
            <Route path="tenders/:id" element={<TenderDetails />} />
+             <Route path="tenders/create" element={<CreateTender />} />
+             <Route path="tenders/edit/:id" element={<CreateTender />} />
+             
       </Route>
 
       {/* Fallback */}

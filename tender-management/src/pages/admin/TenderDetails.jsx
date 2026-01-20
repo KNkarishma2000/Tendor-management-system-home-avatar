@@ -1,197 +1,237 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, FileText, Users, ShieldCheck, 
-  Download, Loader2, Eye, Calendar, IndianRupee
+  ArrowLeft, FileText, ShieldCheck, Download, 
+  IndianRupee, Calendar, Clock, TrendingUp, 
+  UserCheck, AlertCircle, ListChecks, Trophy
 } from 'lucide-react';
-// Updated to use your service names
-import { tenderAdminAPI, evaluationAPI, BiddingTenderAPI } from '../../api/auth.service'; 
+import { tenderAdminAPI } from '../../api/auth.service'; 
 import toast from 'react-hot-toast';
+
+// Import the specific BidsManager component you created
+import BidsManager from './BidsManager'; 
 
 export default function TenderDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  const [activeTab, setActiveTab] = useState('overview'); // Toggle state
   const [tender, setTender] = useState(null);
-  const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchTenderAndBids();
-  }, [id]);
-
-  const fetchTenderAndBids = async () => {
+  const fetchTenderData = async () => {
     try {
       setLoading(true);
-      // 1. Fetch Tender Details (Now includes embedded documents)
       const tenderRes = await tenderAdminAPI.getAllTenders();
-      const foundTender = tenderRes.data.data.find(t => t.id === id);
+      
+      const allTenders = tenderRes.data.data || [];
+      const foundTender = allTenders.find(t => String(t.id) === String(id));
+      
       setTender(foundTender);
-
-      // 2. Fetch Bids for this tender
-      const bidsRes = await BiddingTenderAPI.getComparison(id);
-      setBids(bidsRes.data.data || []);
     } catch (error) {
+      console.error("Fetch Error:", error);
       toast.error("Error loading tender data");
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to handle Tender Document Downloads (NIT/BOQ)
-  const handleDownloadTenderDoc = async (filePath) => {
+  useEffect(() => { 
+    fetchTenderData(); 
+  }, [id]);
+
+  const handleDownload = async (path) => {
     try {
-      const res = await tenderAdminAPI.getTenderFileUrl(filePath);
-      if (res.data.url) {
+      const res = await tenderAdminAPI.getTenderFileUrl(path);
+      if (res.data.success) {
         window.open(res.data.url, '_blank');
       }
     } catch (error) {
-      toast.error("Could not generate download link");
+      toast.error("Could not retrieve file link");
     }
   };
 
-  // Function to handle Bid Document Viewing (Tech/Fin)
-  const handleViewBidDoc = async (bidId, type) => {
-    try {
-      const res = type === 'tech' 
-        ? await evaluationAPI.viewTechnicalPDF(bidId) 
-        : await evaluationAPI.viewFinancials(bidId);
-      
-      window.open(res.data.view_url || res.data.url, '_blank');
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Access Denied");
-    }
-  };
+  // Safe data extraction for sub-components
+  const timeline = Array.isArray(tender?.tender_timeline) 
+    ? tender.tender_timeline[0] 
+    : tender?.tender_timeline || null;
+
+  const eligibility = Array.isArray(tender?.tender_eligibility_criteria) 
+    ? tender.tender_eligibility_criteria[0] 
+    : tender?.tender_eligibility_criteria || null;
+
+  const documents = tender?.tender_documents || [];
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-white">
-      <Loader2 className="animate-spin text-yellow-500 w-12 h-12" />
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+      <p className="font-black uppercase tracking-widest text-xs">Loading Architecture...</p>
     </div>
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-neutral-400 hover:text-black font-black text-xs mb-8 uppercase tracking-widest transition-all">
-        <ArrowLeft size={16} /> Back to Management
-      </button>
+    <div className="bg-[#FAFAFA] min-h-screen p-6 md:p-10">
+      
+      {/* HEADER & TAB NAVIGATION */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+        <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-neutral-400 hover:text-black font-black text-xs uppercase tracking-widest transition-all">
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
+        </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 space-y-8">
-          {/* Main Info Card */}
-          <div className="bg-white rounded-[2.5rem] p-10 border border-neutral-100 shadow-sm">
-            <div className="flex justify-between items-start mb-8">
-              <div>
-                <span className="px-3 py-1 bg-yellow-400 text-black rounded-full text-[10px] font-black uppercase tracking-widest">
-                  {tender?.status}
-                </span>
-                <h1 className="text-4xl font-black text-neutral-900 mt-4 leading-tight">{tender?.title}</h1>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-8 border-y border-neutral-50">
-              <div>
-                <p className="text-[10px] font-black text-neutral-300 uppercase tracking-widest mb-1">Estimated Budget</p>
-                <p className="text-xl font-black text-neutral-900">₹{parseFloat(tender?.budget_estimate).toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-neutral-300 uppercase tracking-widest mb-1">Timeline</p>
-                <p className="text-xl font-black text-neutral-900">{tender?.delivery_timeline}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-neutral-300 uppercase tracking-widest mb-1">Tech Weightage</p>
-                <p className="text-xl font-black text-neutral-900">{tender?.technical_weightage}%</p>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <h4 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] mb-3">Scope of Work</h4>
-              <p className="text-neutral-600 font-medium leading-relaxed">{tender?.scope_of_work}</p>
-            </div>
-          </div>
-
-          {/* DOCUMENT SECTION: This is what you specifically asked for */}
-          <div className="bg-neutral-50 rounded-[2.5rem] p-10 border border-neutral-100">
-            <h3 className="text-xl font-black text-neutral-900 mb-6 flex items-center gap-3">
-              <FileText className="text-yellow-500" /> Tender Documents (NIT/BOQ)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tender?.tender_documents?.length > 0 ? (
-                tender.tender_documents.map((doc) => (
-                  <button 
-                    key={doc.id}
-                    onClick={() => handleDownloadTenderDoc(doc.file_path)}
-                    className="flex items-center justify-between p-5 bg-white rounded-2xl border border-neutral-100 hover:border-neutral-900 transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-neutral-50 text-neutral-400 rounded-xl group-hover:bg-yellow-400 group-hover:text-black transition-all">
-                        <FileText size={20} />
-                      </div>
-                      <div>
-                        <p className="font-black text-neutral-800 text-xs uppercase tracking-tight">{doc.document_type}</p>
-                        <p className="text-[10px] text-neutral-400 font-bold">Click to Download PDF</p>
-                      </div>
-                    </div>
-                    <Download size={18} className="text-neutral-300 group-hover:text-neutral-900" />
-                  </button>
-                ))
-              ) : (
-                <div className="col-span-2 text-center py-6 bg-white/50 rounded-2xl border border-dashed border-neutral-200">
-                   <p className="text-neutral-400 font-bold text-sm italic">No technical documents attached to this tender.</p>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Dynamic Tab Switcher */}
+        <div className="flex bg-white p-1.5 rounded-[1.5rem] border border-neutral-200 shadow-sm">
+          <button 
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
+          >
+            <ListChecks size={14}/> Tender Overview
+          </button>
+          <button 
+            onClick={() => setActiveTab('bids')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'bids' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
+          >
+            <Trophy size={14}/> Bidders & Comparison
+          </button>
         </div>
 
-        {/* Right Sidebar: Bidding Activity */}
-        <div className="space-y-6">
-          <div className="bg-neutral-900 rounded-[2.5rem] p-8 text-white min-h-[500px] shadow-2xl">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="font-black text-sm uppercase tracking-widest">Received Bids</h3>
-              <div className="bg-yellow-400 text-black text-[10px] font-black px-2 py-1 rounded-md">
-                {bids.length} TOTAL
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {bids.length > 0 ? bids.map((bid) => (
-                <div key={bid.id} className="p-6 bg-white/5 rounded-3xl border border-white/5 hover:border-yellow-400/30 transition-all">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="font-black text-sm tracking-tight text-white uppercase">{bid.suppliers?.company_name || "Supplier"}</p>
-                      <p className="text-[10px] text-neutral-500 font-black tracking-widest uppercase mt-1">{bid.status}</p>
-                    </div>
-                    {bid.status === 'TECH_QUALIFIED' && <CheckCircle size={16} className="text-green-400" />}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mt-6">
-                    <button 
-                      onClick={() => handleViewBidDoc(bid.id, 'tech')}
-                      className="flex items-center justify-center gap-2 py-3 bg-white/10 hover:bg-white text-white hover:text-black rounded-xl text-[10px] font-black transition-all"
-                    >
-                      <Eye size={14} /> TECH
-                    </button>
-                    <button 
-                      disabled={bid.status !== 'TECH_QUALIFIED'}
-                      onClick={() => handleViewBidDoc(bid.id, 'fin')}
-                      className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black transition-all ${
-                        bid.status === 'TECH_QUALIFIED' 
-                        ? 'bg-yellow-400 text-black hover:bg-white' 
-                        : 'bg-neutral-800 text-neutral-600 cursor-not-allowed opacity-50'
-                      }`}
-                    >
-                      <ShieldCheck size={14} /> FIN
-                    </button>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-20 border border-white/5 rounded-[2rem] border-dashed">
-                  <p className="text-neutral-500 font-bold text-xs italic px-6 uppercase tracking-widest">Waiting for submissions</p>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="flex gap-3">
+          <span className="px-4 py-2 bg-white border border-neutral-200 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">
+            ID: {id.slice(0, 8)}...
+          </span>
+          <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${tender?.status === 'DRAFT' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+            {tender?.status}
+          </span>
         </div>
       </div>
+
+      {/* CONDITIONAL TAB CONTENT */}
+      {activeTab === 'overview' ? (
+        /* --- ORIGINAL TENDER DETAILS VIEW --- */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
+          <div className="lg:col-span-8 space-y-8">
+            <section className="bg-white rounded-[2rem] p-10 border border-neutral-100 shadow-sm relative overflow-hidden">
+              <h1 className="text-4xl font-black text-neutral-900 mb-4 tracking-tight">{tender?.title}</h1>
+              <p className="text-neutral-500 font-medium text-lg mb-8 max-w-2xl">{tender?.description}</p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-neutral-50">
+                <DetailBox label="Budget" value={`₹${tender?.budget_estimate?.toLocaleString()}`} icon={<IndianRupee size={14}/>} color="text-green-600" />
+                <DetailBox label="EMD" value={`₹${tender?.emd_amount?.toLocaleString()}`} icon={<ShieldCheck size={14}/>} color="text-blue-600" />
+                <DetailBox label="Timeline" value={tender?.delivery_timeline} icon={<Clock size={14}/>} />
+                <DetailBox label="Validity" value={`${tender?.bid_validity_days} Days`} icon={<Calendar size={14}/>} />
+              </div>
+
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div>
+                  <h4 className="flex items-center gap-2 text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-4"><FileText size={14}/> Scope of Work</h4>
+                  <div className="bg-neutral-50 p-6 rounded-2xl text-sm leading-relaxed text-neutral-600 border border-neutral-100">{tender?.scope_of_work}</div>
+                </div>
+                <div>
+                  <h4 className="flex items-center gap-2 text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-4"><AlertCircle size={14}/> Penalty Clauses</h4>
+                  <div className="bg-red-50/30 p-6 rounded-2xl text-sm leading-relaxed text-red-900/70 border border-red-100">{tender?.penalty_clauses}</div>
+                </div>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="bg-neutral-900 rounded-[2rem] p-8 text-white">
+                <h3 className="text-sm font-black uppercase tracking-widest mb-6 text-yellow-400 flex items-center gap-2"><UserCheck size={18}/> Eligibility Criteria</h3>
+                <div className="space-y-4">
+                  <EligibilityRow label="Exp. Required" value={`${eligibility?.min_experience_years || 0} Years`} />
+                  <EligibilityRow label="Min. Turnover" value={`₹${eligibility?.min_turnover?.toLocaleString() || 0}`} />
+                  <div className="pt-4 border-t border-white/10 mt-4">
+                    <p className="text-[10px] font-black text-neutral-500 uppercase mb-2">Required Certifications</p>
+                    <p className="text-sm font-bold text-neutral-200">{eligibility?.required_certifications || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[2rem] p-8 border border-neutral-100 shadow-sm">
+                <h3 className="text-sm font-black uppercase tracking-widest mb-6 text-neutral-900 flex items-center gap-2"><TrendingUp size={18} className="text-blue-500"/> Evaluation Weightage</h3>
+                <div className="space-y-6">
+                   <WeightBar label="Technical Score" weight={tender?.technical_weightage} color="bg-blue-500" />
+                   <WeightBar label="Financial (L1) Score" weight={tender?.price_weightage} color="bg-green-500" />
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div className="lg:col-span-4 space-y-8">
+            <div className="bg-white rounded-[2rem] p-8 border border-neutral-100 shadow-sm">
+              <h3 className="font-black text-sm uppercase tracking-widest mb-8 border-b pb-4">Tender Deadlines</h3>
+              <div className="space-y-8 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-neutral-100">
+                <TimelineItem label="Clarification Deadline" date={timeline?.clarification_deadline} color="bg-amber-400" />
+                <TimelineItem label="Submission Deadline" date={timeline?.submission_deadline} color="bg-red-500" />
+                <TimelineItem label="Technical Opening" date={timeline?.opening_date} color="bg-green-500" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[2rem] p-8 border border-neutral-100 shadow-sm">
+               <h3 className="font-black text-sm uppercase tracking-widest mb-6">Attachments</h3>
+               <div className="space-y-3">
+                 {documents.length > 0 ? documents.map((doc) => (
+                   <div key={doc.id} onClick={() => handleDownload(doc.file_path)} className="group flex items-center justify-between p-4 bg-neutral-50 rounded-2xl border border-transparent hover:border-black transition-all cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white rounded-lg shadow-sm group-hover:bg-yellow-400">
+                          <FileText size={16}/>
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-tighter">{doc.document_type}</span>
+                      </div>
+                      <Download size={16} className="text-neutral-300 group-hover:text-black"/>
+                   </div>
+                 )) : <p className="text-xs text-neutral-400 italic">No files uploaded.</p>}
+               </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* --- BIDS MANAGEMENT VIEW (Renders your BidsManager.jsx) --- */
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <BidsManager tenderId={id} tenderStatus={tender?.status} />
+        </div>
+      )}
     </div>
   );
 }
+
+/** * SUB-COMPONENTS 
+ */
+const DetailBox = ({ label, value, icon, color = "text-neutral-900" }) => (
+  <div>
+    <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-2 flex items-center gap-1">{icon} {label}</p>
+    <p className={`text-lg font-black tracking-tight ${color}`}>{value}</p>
+  </div>
+);
+
+const EligibilityRow = ({ label, value }) => (
+  <div className="flex justify-between items-center">
+    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">{label}</span>
+    <span className="text-sm font-black text-neutral-100">{value}</span>
+  </div>
+);
+
+const WeightBar = ({ label, weight, color }) => (
+  <div>
+    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
+      <span>{label}</span>
+      <span>{weight}%</span>
+    </div>
+    <div className="w-full h-2 bg-neutral-100 rounded-full overflow-hidden">
+      <div className={`h-full ${color}`} style={{ width: `${weight}%` }}></div>
+    </div>
+  </div>
+);
+
+const TimelineItem = ({ label, date, color }) => {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+  const displayDate = formatDate(date);
+  return (
+    <div className="relative pl-8">
+      <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white shadow-sm ${color}`}></div>
+      <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-sm font-black text-neutral-800">{displayDate || 'Pending'}</p>
+    </div>
+  );
+};

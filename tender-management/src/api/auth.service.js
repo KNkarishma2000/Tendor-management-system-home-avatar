@@ -44,8 +44,15 @@ export const authAPI = {
 
 export const adminAPI = {
   // Approve or Reject a Supplier
-  approveSupplier: (supplierId, status) => 
-    apiClient.put(`/admin/approve-supplier/${supplierId}`, { status }),
+  getAllSuppliers: () => apiClient.get('/admin/suppliers'),
+
+  // NEW: Fetch full profile, financials, and signed doc URLs
+  getSupplierDetails: (id) => apiClient.get(`/admin/suppliers/${id}`),
+
+  // Existing approveSupplier
+ 
+ approveSupplier: (supplierId, data) => 
+    apiClient.put(`/admin/approve-supplier/${supplierId}`, data),
     
   // Award a tender to a specific bidder
   awardTender: (tenderId, winningBidId) => 
@@ -99,16 +106,16 @@ export const BiddingTenderAPI = {
   }),
 
   // 2. Admin: Get all tech-qualified bids for comparison (L1 identification)
-  getComparison: (tenderId) => apiClient.get(`/award/comparison/${tenderId}`),
+  getComparison: (tenderId) => apiClient.get(`/awards/comparison/${tenderId}`),
 
   // 3. Admin: Award Tender to a winner
   awardWinner: (tenderId, winningBidId) => 
-    apiClient.post('/award/award-winner', { tender_id: tenderId, winning_bid_id: winningBidId }),
+    apiClient.post('/awards/award-winner', { tender_id: tenderId, winning_bid_id: winningBidId }),
 
   // 4. Admin: Finalize Award (Upload LOI and Contract)
   // formData must contain 'loi_file' and 'contract_file'
   finalizeAward: (awardId, formData) => 
-    apiClient.put(`/award/finalize/${awardId}`, formData, {
+    apiClient.put(`/awards/finalize/${awardId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
 };
@@ -120,7 +127,9 @@ export const evaluationAPI = {
 
   // 2. Submit score (automatically updates status to QUALIFIED or REJECTED)
   submitScore: (data) => apiClient.post('/evaluations/score-tech', data),
-
+// ADD THESE TWO NEW METHODS FOR DOWNLOADING
+  downloadTechnicalPDF: (bid_id) => apiClient.get(`/evaluations/download-tech/${bid_id}`),
+  downloadFinancialPDF: (bid_id) => apiClient.get(`/evaluations/download-fin/${bid_id}`),
   // 3. Unlock and view Financials (Only works if status is TECH_QUALIFIED)
   viewFinancials: (bidId) => apiClient.get(`/evaluations/view-fin/${bidId}`),
 };
@@ -157,16 +166,26 @@ export const authResidentAPI = {
   deleteResident: (id) => apiClient.delete(`/residents/delete/${id}`),
 };
 // --- TENDER & PROCUREMENT MANAGEMENT ---
+// Inside your auth.service.js, update tenderAdminAPI to this:
 export const tenderAdminAPI = {
-  // 1. Create the core tender, timeline, and eligibility
-  createTender: (data) => apiClient.post('/tenders', data),
-
-  // 2. Upload supporting documents (BOQ, NIT, Drawings)
-  uploadDoc: (tenderId, formData) => apiClient.post(`/tenders/upload/${tenderId}`, formData, {
+  createTender: (formData) => apiClient.post('/tenders', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-getTenderFileUrl: (path) => apiClient.get(`/tenders/download`, { params: { path } }),
-  // 3. Public view of all tenders
+
+  // ADD THIS LINE - This was the missing piece causing the redirect
+  getTenderById: (id) => apiClient.get(`/tenders/${id}`), 
+
+  uploadTenderDocuments: (tenderId, formData) => 
+    apiClient.post(`/tenders/upload/${tenderId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  updateTender: (id, formData) => apiClient.put(`/tenders/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+
+  deleteTender: (id) => apiClient.delete(`/tenders/${id}`),
+  getTenderFileUrl: (path) => apiClient.get(`/tenders/download`, { params: { path } }),
   getAllTenders: () => apiClient.get('/tenders'),
 };
 // --- VENDOR PERFORMANCE ---

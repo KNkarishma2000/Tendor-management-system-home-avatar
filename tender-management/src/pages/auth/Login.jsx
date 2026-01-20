@@ -40,8 +40,10 @@ const Login = () => {
         showSuccess(isAdminMode ? "Access Granted!" : "Welcome Home!");
         
         // Save token and user details
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('userRole', data.user.role);
+      localStorage.setItem('accessToken', data.accessToken);
+localStorage.setItem('userRole', data.user.role);
+
+localStorage.setItem('user', JSON.stringify(data.user));
         
         // Redirect based on role
         setTimeout(() => {

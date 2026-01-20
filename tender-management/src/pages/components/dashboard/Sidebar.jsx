@@ -9,6 +9,7 @@ const MENU_ITEMS = {
     { label: 'Carnivals', icon: Tent, path: '/admin//carnivals' },
     { label: 'Notices', icon: Bell, path: '/admin/notices' },
     { label: 'Tenders', icon: FileText, path: '/admin/tenders' },
+    { label: 'Suppliers', icon: FileText, path: '/admin/suppliers' },
   ],
   SUPPLIER: [
     { label: 'Bidding Board', icon: Briefcase, path: '/dashboard/bids' },
