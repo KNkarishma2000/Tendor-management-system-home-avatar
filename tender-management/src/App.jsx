@@ -42,7 +42,7 @@ function App() {
         <Route path="notices" element={<NoticeManagement />} /> 
          <Route path="suppliers" element={<SupplierDirectory />} /> 
          // Example Route setup
-<Route path="/admin/supplier/:id" element={<SupplierProfilePage />} />
+
            <Route path="tenders" element={<TenderManagement />} /> 
            <Route path="tenders/:id" element={<TenderDetails />} />
              <Route path="tenders/create" element={<CreateTender />} />
