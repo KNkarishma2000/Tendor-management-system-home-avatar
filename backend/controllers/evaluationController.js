@@ -128,3 +128,57 @@ exports.viewFinancialBid = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// 1. Download Technical PDF
+exports.downloadTechnicalBid = async (req, res) => {
+  try {
+    const { bid_id } = req.params;
+    const { data: doc, error: dbError } = await supabase
+      .from('bid_technical_documents')
+      .select('file_path')
+      .eq('bid_id', bid_id)
+      .single();
+
+    if (dbError) throw dbError;
+
+    // The { download: true } option tells Supabase to set Content-Disposition: attachment
+    const { data, error: storageError } = await supabase.storage
+      .from('technical-bids')
+      .createSignedUrl(doc.file_path, 300, { download: true });
+
+    if (storageError) throw storageError;
+    res.status(200).json({ success: true, download_url: data.signedUrl });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 2. Download Financial PDF (Only if TECH_QUALIFIED)
+exports.downloadFinancialBid = async (req, res) => {
+  try {
+    const { bid_id } = req.params;
+
+    // Check status first
+    const { data: bid } = await supabase.from('bids').select('status').eq('id', bid_id).single();
+    if (bid?.status !== 'TECH_QUALIFIED' && bid?.status !== 'WON') {
+      return res.status(403).json({ success: false, message: "Financial docs are locked." });
+    }
+
+    const { data: fin, error: dbError } = await supabase
+      .from('bid_financials')
+      .select('encrypted_file_path')
+      .eq('bid_id', bid_id)
+      .single();
+
+    if (dbError) throw dbError;
+
+    const { data, error: storageError } = await supabase.storage
+      .from('financial-bids')
+      .createSignedUrl(fin.encrypted_file_path, 300, { download: true });
+
+    if (storageError) throw storageError;
+    res.status(200).json({ success: true, download_url: data.signedUrl });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

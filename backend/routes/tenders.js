@@ -3,27 +3,44 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const upload = multer(); // Memory storage for Supabase
+
 const { 
     createTender, 
     getAllTenders, 
+    getTenderById,      // Add this
+    updateTender,      // Add this
+    deleteTender,
     getTenderFileUrl,
     uploadTenderDocuments 
 } = require('../controllers/tenderController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
-// Standard Tender Routes
-router.post('/', protect, adminOnly, createTender); 
-router.get('/', getAllTenders); 
+// UPDATED: Now accepts up to 5 files with the field name 'tender_documents'
+router.post(
+    '/', 
+    protect, 
+    adminOnly, 
+    upload.array('tender_documents', 5), 
+    createTender
+); 
 
-// NEW: Document Upload Route
-// URL: POST http://localhost:5000/api/tenders/upload/:tender_id
+router.get('/', getAllTenders);
+router.get('/download', protect, getTenderFileUrl);
+router.get('/:id', protect, getTenderById);
+
+// NEW: Update route (Edit)
+// We use .array() again in case the user wants to upload new files during editing
+router.put('/:id', protect, adminOnly, upload.array('tender_documents', 5), updateTender);
+
+// NEW: Delete route
+router.delete('/:id', protect, adminOnly, deleteTender);
+// Keep this for adding documents to existing tenders later if needed
 router.post(
     '/upload/:tender_id', 
     protect, 
     adminOnly, 
-    upload.single('file'), // 'file' is the key you will use in Thunder Client
+    upload.single('tender_document'), 
     uploadTenderDocuments
 );
 
-router.get('/download', protect, getTenderFileUrl);
 module.exports = router;

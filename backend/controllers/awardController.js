@@ -1,7 +1,9 @@
 const supabase = require('../config/supabase');
 
 // 1. Get all qualified bids to identify L1 (Lowest Bidder)
-exports.getQualifiedBids = async (req, res) => {
+// backend/controllers/awardController.js
+
+exports.getComparison = async (req, res) => {
   try {
     const { tender_id } = req.params;
 
@@ -10,59 +12,93 @@ exports.getQualifiedBids = async (req, res) => {
       .select(`
         id, 
         status, 
+        submitted_at, 
         supplier_id,
-        suppliers (company_name),
-        bid_financials (total_amount)
+        suppliers (
+          company_name,
+          users (
+            email
+          )
+        ),
+        bid_financials (
+          total_amount
+        ),
+        technical_evaluations (
+          score,
+          remarks
+        )
       `)
       .eq('tender_id', tender_id)
-      .eq('status', 'TECH_QUALIFIED')
-      .order('total_amount', { foreignTable: 'bid_financials', ascending: true });
+      .order('submitted_at', { ascending: false }); // Changed from created_at
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase Query Error:", error);
+      return res.status(400).json({ success: false, message: error.message });
+    }
 
-    res.status(200).json({ success: true, qualified_bids: data });
+    res.status(200).json({ 
+      success: true, 
+      qualified_bids: data || [] 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // 2. Award the Tender to the Winner
+// backend/controllers/awardController.js
 // backend/controllers/awardController.js
 exports.awardTender = async (req, res) => {
   try {
     const { tender_id, winning_bid_id } = req.body;
-    const admin_id = req.user.id;
 
-    // 1. Fetch winning supplier_id first
-    const { data: winBid } = await supabase.from('bids').select('supplier_id').eq('id', winning_bid_id).single();
+    // 1. PREVENT DUPLICATES: Check if tender is already awarded
+    const { data: existingAward, error: checkError } = await supabase
+      .from('tender_awards')
+      .select('id')
+      .eq('tender_id', tender_id)
+      .maybeSingle();
 
-    // 2. Perform Bulk Status Updates
+    if (existingAward) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Action Blocked: This tender has already been awarded." 
+      });
+    }
+
+    // 2. Fetch winning supplier_id
+    const { data: winBid } = await supabase
+      .from('bids')
+      .select('supplier_id')
+      .eq('id', winning_bid_id)
+      .single();
+
+    if (!winBid) throw new Error("Bid not found");
+
+    // 3. Update Bids Status (Atomic-like sequence)
+    // Update the winner
     await supabase.from('bids').update({ status: 'WON' }).eq('id', winning_bid_id);
+    // Update the losers
     await supabase.from('bids').update({ status: 'LOST' }).eq('tender_id', tender_id).neq('id', winning_bid_id);
+    // Update the Tender itself
     await supabase.from('tenders').update({ status: 'AWARDED' }).eq('id', tender_id);
 
-    // 3. Create the Award Record (Table: tender_awards)
-    const { data: awardData, error: awardError } = await supabase.from('tender_awards').insert([{
+    // 4. Create Award Record (This table should have a UNIQUE constraint on tender_id)
+    const { error: awardError } = await supabase.from('tender_awards').insert([{
       tender_id,
       bid_id: winning_bid_id,
       supplier_id: winBid.supplier_id,
       award_date: new Date(),
-      // loi_file and contract_file will be updated later in the Post-Award phase
-    }]).select();
-
-    if (awardError) throw awardError;
-
-    // 4. Audit Log (Table: audit_logs)
-    await supabase.from('audit_logs').insert([{
-      user_id: admin_id,
-      action: 'TENDER_AWARDED',
-      entity_type: 'TENDER',
-      entity_id: tender_id,
-      ip_address: req.ip
     }]);
 
-    res.status(200).json({ success: true, message: "Tender awarded and award record created." });
+    if (awardError) {
+      // If DB unique constraint fails, this prevents duplicates
+      if (awardError.code === '23505') throw new Error("Award already exists in database.");
+      throw awardError;
+    }
+
+    res.status(200).json({ success: true, message: "Tender awarded successfully." });
   } catch (error) {
+    console.error("Award Error:", error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };

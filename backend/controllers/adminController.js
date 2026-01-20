@@ -38,3 +38,63 @@ exports.approveSupplier = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.getAllSuppliers = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select(`
+        id, 
+        company_name, 
+        status, 
+        contact_person_name, 
+        contact_phone, 
+        created_at,
+        users (email)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 2. Get full details of a specific supplier (Financials + Documents)
+exports.getSupplierDetails = async (req, res) => {
+  try {
+    const { supplier_id } = req.params;
+
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select(`
+        *,
+        users (email),
+        supplier_financials (*),
+        supplier_documents (*),
+        supplier_categories (category_name)
+      `)
+      .eq('id', supplier_id)
+      .single();
+
+    if (error) throw error;
+
+    // Generate temporary "Signed URLs" for private documents in storage
+    // This allows the admin to view/download files even if the bucket is private
+    if (data.supplier_documents && data.supplier_documents.length > 0) {
+      for (let doc of data.supplier_documents) {
+        const { data: urlData, error: urlError } = await supabase.storage
+          .from('supplier-docs')
+          .createSignedUrl(doc.file_path, 3600); // URL valid for 1 hour
+
+        if (!urlError) {
+          doc.download_url = urlData.signedUrl;
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
