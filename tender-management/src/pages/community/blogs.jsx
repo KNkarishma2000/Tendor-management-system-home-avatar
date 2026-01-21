@@ -22,7 +22,7 @@ export default function ResidentBlogs() {
   const fetchBlogs = async () => {
     try {
       setLoading(true);
-      const res = await communityAPI.getBlogs();
+      const res = await communityAPI.getAllBlogs();
       const actualBlogs = res.data?.data || res.data || [];
       setBlogs(Array.isArray(actualBlogs) ? actualBlogs : []);
     } catch (err) {
@@ -81,16 +81,16 @@ export default function ResidentBlogs() {
   // --- FULL BLOG DETAIL VIEW ---
   if (selectedBlog) {
     return (
-      <div className=" md:p-1 min-h-screen animate-in fade-in duration-500">
+      <div className="p-4 md:p-10 min-h-screen animate-in fade-in duration-500">
         <button 
           onClick={() => setSelectedBlog(null)}
-          className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-medium mb-8 transition-all text-sm group"
+          className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-medium mb-12 transition-all text-sm group"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> BACK TO FEED
         </button>
 
         <article className="space-y-8">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
                 <User size={20} />
@@ -113,7 +113,11 @@ export default function ResidentBlogs() {
             </div>
           </div>
 
-          
+          <div className="text-center md:text-left">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight uppercase">
+              {selectedBlog.title}
+            </h1>
+          </div>
 
           <div className="w-full rounded-2xl overflow-hidden bg-slate-50 shadow-sm">
             {selectedBlog.images && selectedBlog.images.length > 0 ? (
@@ -128,12 +132,8 @@ export default function ResidentBlogs() {
               </div>
             )}
           </div>
-<div className="text-center md:text-left mb-1">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight uppercase">
-              {selectedBlog.title}
-            </h1>
-          </div>
-          <div className=" mx-auto pt-3">
+
+          <div className="max-w-3xl mx-auto pt-6">
             <div className="prose prose-slate prose-lg max-w-none">
               <p className="text-slate-700 text-lg leading-relaxed whitespace-pre-wrap font-light">
                 {selectedBlog.content}
@@ -280,8 +280,4 @@ export default function ResidentBlogs() {
       )}
     </div>
   );
-
 }
-
-
-
