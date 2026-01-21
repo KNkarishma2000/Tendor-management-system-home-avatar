@@ -43,6 +43,7 @@ exports.register = async (req, res) => {
 
 // 2. LOGIN USER
 // 2. UNIFIED LOGIN (Handles Email or Flat No)
+// 2. UNIFIED LOGIN (Handles Email or Flat No)
 exports.login = async (req, res) => {
   const { email, flat_no, password } = req.body;
   const ip_address = req.ip || req.headers['x-forwarded-for'];
@@ -65,7 +66,6 @@ exports.login = async (req, res) => {
         return res.status(401).json({ message: "Invalid Flat Number" });
       }
 
-      // Check if Admin has approved the resident
       if (resident.status !== 'APPROVED') {
         return res.status(403).json({ message: "Resident account pending admin approval." });
       }
@@ -91,7 +91,6 @@ exports.login = async (req, res) => {
     // --- STEP 2: VERIFY PASSWORD ---
     const isMatch = await bcrypt.compare(password, user.password_hash);
     
-    // Record Attempt in logs
     await supabase.from('login_attempts').insert([{
       email: email || `FLAT_${flat_no}`,
       ip_address,
@@ -103,16 +102,32 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid Password" });
     }
 
-    // Double check active status for non-residents
     if (!user.is_active) {
       return res.status(403).json({ message: "User account is deactivated." });
+    }
+
+    // --- NEW: FETCH SUPPLIER DATA IF USER IS A SUPPLIER ---
+    let supplier_id = null;
+    let company_name = null;
+
+    if (user.role === 'SUPPLIER') {
+      const { data: supplier, error: supplierError } = await supabase
+        .from('suppliers')
+        .select('id, company_name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (supplier) {
+        supplier_id = supplier.id;
+        company_name = supplier.company_name;
+      }
     }
 
     // --- STEP 3: GENERATE TOKENS ---
     const accessToken = jwt.sign(
       { id: user.id, role: user.role }, 
       process.env.JWT_SECRET, 
-      { expiresIn: '1d' } // Extended for better UX
+      { expiresIn: '1d' }
     );
     
     const refreshToken = jwt.sign(
@@ -124,7 +139,7 @@ exports.login = async (req, res) => {
     // --- STEP 4: MANAGE SESSION ---
     await supabase.from('sessions').insert([{
       user_id: user.id,
-      refresh_token_hash: refreshToken, // In production, hash this!
+      refresh_token_hash: refreshToken,
       ip_address,
       device_info,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
@@ -136,14 +151,16 @@ exports.login = async (req, res) => {
       sameSite: 'Strict' 
     });
     
-    // --- STEP 5: SUCCESS RESPONSE ---
+    // --- STEP 5: SUCCESS RESPONSE (With Supplier Info) ---
     res.status(200).json({ 
       success: true, 
       accessToken, 
       user: { 
         id: user.id, 
+        supplier_id: supplier_id, // This is what your Bid table needs
         email: user.email, 
         role: user.role,
+        company_name: company_name,
         flat_no: flat_no || null 
       } 
     });
