@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react';
+
+
+
+
+
+
+          import React, { useState, useEffect } from 'react';
 import { 
-  CheckCircle, Loader2, ArrowLeft, X, Eye, Clock, Ban, Check 
+  CheckCircle, Loader2, ArrowLeft, X, Eye, Clock, Ban, Check, 
+  Trash2, UserCheck, UserX 
 } from 'lucide-react';
 import { authResidentAPI, communityAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
@@ -44,12 +51,38 @@ export default function ResidentManagement() {
         gallery: (gallery || []).filter(g => g.resident_id === resident.id)
       });
     } catch (error) {
-      toast.error("Error fetching content history");
+      // Content fetching might fail if no content exists, purely optional
+      // console.log("No pending content found specific to this user");
     } finally {
       setContentLoading(false);
     }
   };
 
+  // --- NEW: Handle Resident Approval/Rejection/Deletion ---
+  const handleResidentAction = async (id, action) => {
+    // action: 'approve', 'reject', 'delete'
+    try {
+      if (action === 'delete') {
+        if (!window.confirm("Are you sure you want to delete this resident permanently?")) return;
+        await authResidentAPI.deleteResident(id);
+        toast.success("Resident deleted successfully");
+      } else {
+        // Map 'approve'/'reject' to the status string your backend expects
+        const status = action === 'approve' ? 'approved' : 'rejected';
+        await authResidentAPI.approveResident(id, { status });
+        toast.success(`Resident ${status} successfully`);
+      }
+
+      // Refresh list and close profile view
+      setSelectedResident(null);
+      fetchResidents();
+    } catch (error) {
+      console.error(error);
+      toast.error(`Failed to ${action} resident`);
+    }
+  };
+
+  // --- Existing Content Moderation ---
   const handleModerate = async (id, type, status) => {
     try {
       // status: true = Approve, false = Reject
@@ -73,7 +106,7 @@ export default function ResidentManagement() {
   return (
     <div className="relative p-6">
       
-      {/* 1. PREVIEW & MODERATION MODAL */}
+      {/* 1. PREVIEW & MODERATION MODAL (UNCHANGED) */}
       {viewingItem && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
@@ -117,20 +150,20 @@ export default function ResidentManagement() {
               </div>
             </div>
 
-            {/* ACTION BAR: Show if status is PENDING or if not yet processed */}
+            {/* CONTENT ACTION BAR */}
             {viewingItem.status?.toUpperCase() !== 'APPROVED' && viewingItem.status?.toUpperCase() !== 'REJECTED' && (
               <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex gap-4">
                 <button 
                   onClick={() => handleModerate(viewingItem.id, viewingItem.type, true)}
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-200"
                 >
-                  <CheckCircle size={20} /> APPROVE
+                  <CheckCircle size={20} /> APPROVE CONTENT
                 </button>
                 <button 
                   onClick={() => handleModerate(viewingItem.id, viewingItem.type, false)}
                   className="flex-1 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2"
                 >
-                  <Ban size={20} /> REJECT
+                  <Ban size={20} /> REJECT CONTENT
                 </button>
               </div>
             )}
@@ -146,10 +179,51 @@ export default function ResidentManagement() {
            </button>
            
            <div className="bg-white rounded-[2.5rem] p-8 border border-neutral-100 shadow-sm mb-8">
-             <div>
-               <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Resident Profile</span>
-               <h1 className="text-3xl font-black text-neutral-900">{selectedResident.full_name}</h1>
-               <p className="text-neutral-500 font-bold">Unit: {selectedResident.block} - {selectedResident.flat_no}</p>
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+               <div>
+                 <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 ${
+                    selectedResident.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    selectedResident.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-yellow-100 text-yellow-700'
+                 }`}>
+                    {selectedResident.status || 'PENDING'}
+                 </span>
+                 <h1 className="text-3xl font-black text-neutral-900">{selectedResident.full_name}</h1>
+                 <p className="text-neutral-500 font-bold">Unit: {selectedResident.block} - {selectedResident.flat_no}</p>
+                 <p className="text-neutral-400 text-sm mt-1">{selectedResident.email} • {selectedResident.phone_number}</p>
+               </div>
+
+               {/* --- NEW: RESIDENT ACTION BUTTONS --- */}
+               <div className="flex gap-3">
+                 {/* Only show Approve/Reject if not already approved */}
+                 {selectedResident.status !== 'approved' && (
+                    <button 
+                      onClick={() => handleResidentAction(selectedResident.id, 'approve')}
+                      className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-green-200"
+                    >
+                      <UserCheck size={18} /> Approve User
+                    </button>
+                 )}
+                 
+                 {/* Show Reject if Pending */}
+                 {selectedResident.status === 'pending' && (
+                    <button 
+                      onClick={() => handleResidentAction(selectedResident.id, 'reject')}
+                      className="bg-neutral-100 hover:bg-red-100 text-neutral-600 hover:text-red-600 px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
+                    >
+                      <Ban size={18} /> Reject
+                    </button>
+                 )}
+
+                 {/* Always show Delete */}
+                 <button 
+                    onClick={() => handleResidentAction(selectedResident.id, 'delete')}
+                    className="border-2 border-red-100 text-red-500 hover:bg-red-50 px-4 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
+                    title="Delete Resident"
+                 >
+                   <Trash2 size={18} />
+                 </button>
+               </div>
              </div>
 
              <div className="flex gap-8 mt-10 border-b border-neutral-100">
@@ -196,11 +270,28 @@ export default function ResidentManagement() {
              <tbody>
                {residents.map(res => (
                  <tr key={res.id} onClick={() => handleViewResident(res)} className="group hover:bg-neutral-50 transition-colors cursor-pointer border-b border-neutral-50">
-                   <td className="px-8 py-6 font-black text-neutral-900 group-hover:text-yellow-600">{res.full_name}</td>
+                   <td className="px-8 py-6">
+                      <div className="flex items-center gap-3">
+                        <span className="font-black text-neutral-900 group-hover:text-yellow-600 transition-colors">{res.full_name}</span>
+                        {/* --- NEW: STATUS BADGE IN TABLE --- */}
+                        {res.status !== 'approved' && (
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                             res.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {res.status || 'Pending'}
+                          </span>
+                        )}
+                      </div>
+                   </td>
                    <td className="px-8 py-6 font-bold text-neutral-400 uppercase text-xs">{res.block}-{res.flat_no}</td>
                    <td className="px-8 py-6 text-right font-black text-neutral-300 group-hover:text-black">VIEW PROFILE →</td>
                  </tr>
                ))}
+               {residents.length === 0 && (
+                 <tr>
+                   <td colSpan="3" className="px-8 py-12 text-center text-neutral-400 font-bold">No residents found.</td>
+                 </tr>
+               )}
              </tbody>
            </table>
         </div>
