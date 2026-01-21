@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://firebrick-kudu-772501.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -74,11 +74,17 @@ export const tenderAPI = {
 // --- COMMUNITY & RESIDENT FEATURES ---
 
 export const communityAPI = {
+  createMarketplaceItem: (formData) => apiClient.post('/community/marketplace', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getAllBlogs: () => apiClient.get('/community/blogs/all'),
 getNotices: () => apiClient.get('/community/notices/public'),
 getBlogDetails: (id) => apiClient.get(`/community/blogs/public/${id}`),
   // Rename this or add the alias so the component can find it
   getApprovedBlogs: () => apiClient.get('/community/blogs/public'), 
-  
+  createBlog: (formData) => apiClient.post('/community/blogs', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   // Keep the old one if other components use it, or just use the one above
   getBlogs: () => apiClient.get('/community/blogs/public'),
 
@@ -202,5 +208,4 @@ export const publicTenderAPI = {
   getTenders: () => apiClient.get('/tenders'),
   getTenderDetails: (id) => apiClient.get(`/tenders/${id}`),
 };
-
 export default apiClient;
