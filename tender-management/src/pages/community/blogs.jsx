@@ -133,7 +133,7 @@ export default function ResidentBlogs() {
               {selectedBlog.title}
             </h1>
           </div>
-          <div className=" mx-auto pt-6">
+          <div className=" mx-auto pt-3">
             <div className="prose prose-slate prose-lg max-w-none">
               <p className="text-slate-700 text-lg leading-relaxed whitespace-pre-wrap font-light">
                 {selectedBlog.content}
@@ -282,5 +282,6 @@ export default function ResidentBlogs() {
   );
 
 }
+
 
 
