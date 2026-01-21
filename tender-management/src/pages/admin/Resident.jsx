@@ -51,24 +51,28 @@ export default function ResidentManagement() {
     }
   };
 
-  // --- UPDATED: RESIDENT ACTIONS (FIXED UPPERCASE) ---
-  const handleResidentAction = async (id, action) => {
+  // --- UPDATED: RESIDENT ACTIONS (CORRECTED) ---
+  const handleResidentAction = async (id, actionType) => {
     try {
-      // FIX: Send UPPERCASE strings 'APPROVED' or 'REJECTED'
-      const statusToSend = action === 'approve' ? 'APPROVED' : 'REJECTED';
+      // 1. Prepare the correct payload for the backend
+      // Backend expects: { action: 'APPROVE' } or { action: 'REJECT' }
+      const actionToSend = actionType === 'approve' ? 'APPROVE' : 'REJECT';
       
-      // 1. Optimistic UI Update
-      setSelectedResident(prev => ({ ...prev, status: statusToSend }));
+      // 2. Optimistic UI Update (Update the local state immediately)
+      const optimisticStatus = actionType === 'approve' ? 'APPROVED' : 'REJECTED';
+      setSelectedResident(prev => ({ ...prev, status: optimisticStatus }));
 
-      // 2. API Call
-      await authResidentAPI.approveResident(id, { status: statusToSend });
-      toast.success(`Resident ${statusToSend === 'APPROVED' ? 'Approved' : 'Rejected'}`);
+      // 3. API Call
+      // IMPORTANT: Changed key from 'status' to 'action' to match backend controller
+      await authResidentAPI.approveResident(id, { action: actionToSend });
+      
+      toast.success(`Resident ${optimisticStatus === 'APPROVED' ? 'Approved' : 'Rejected'}`);
 
-      // 3. Refresh the main list
+      // 4. Refresh the main list
       fetchResidents();
     } catch (error) {
       console.error(error);
-      toast.error(`Failed to ${action} resident`);
+      toast.error(`Failed to ${actionType} resident`);
       fetchResidents(); // Revert on error
     }
   };
@@ -94,7 +98,7 @@ export default function ResidentManagement() {
   return (
     <div className="relative p-6">
       
-      {/* 1. PREVIEW MODAL (UNCHANGED) */}
+      {/* 1. PREVIEW MODAL */}
       {viewingItem && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
@@ -174,9 +178,9 @@ export default function ResidentManagement() {
                  </div>
                </div>
 
-               {/* --- ACTION BUTTONS (NO DELETE BUTTON) --- */}
+               {/* --- ACTION BUTTONS --- */}
                <div className="flex gap-3 w-full md:w-auto">
-                  {/* APPROVE BUTTON (Hide if already approved) */}
+                  {/* APPROVE BUTTON */}
                   {selectedResident.status?.toUpperCase() !== 'APPROVED' && (
                     <button 
                       onClick={() => handleResidentAction(selectedResident.id, 'approve')}
@@ -186,7 +190,7 @@ export default function ResidentManagement() {
                     </button>
                   )}
 
-                  {/* REJECT BUTTON (Hide if already rejected) */}
+                  {/* REJECT BUTTON */}
                   {selectedResident.status?.toUpperCase() !== 'REJECTED' && (
                     <button 
                       onClick={() => handleResidentAction(selectedResident.id, 'reject')}
@@ -298,7 +302,7 @@ const ContentCard = ({ title, sub, status, onReview }) => {
         <button className="flex items-center gap-2 bg-yellow-400 px-4 py-2.5 rounded-xl text-[10px] font-black text-black shadow-sm hover:bg-black hover:text-white transition-all uppercase tracking-widest">
           <Eye size={14} /> Review
         </button>
-      ) : (
+        ) : (
         <div className="flex flex-col items-end">
           <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">Processed</span>
           <span className="text-[8px] font-bold text-neutral-400">Click to View</span>
