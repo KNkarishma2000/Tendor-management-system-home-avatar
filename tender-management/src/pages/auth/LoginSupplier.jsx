@@ -17,42 +17,45 @@ export default function LoginSupplier() {
   };
 
 const handleLogin = async (e) => {
-  e.preventDefault(); // <--- CRITICAL: Prevent page reload
+  e.preventDefault(); 
   setLoading(true);
   setError('');
 
   try {
-    // We only send email and password for Suppliers
     const response = await authAPI.login({ 
       email: formData.email, 
       password: formData.password 
     });
 
+    // Extract the data from the response
     const { accessToken, user } = response.data;
 
-    // Check if the user is actually a supplier
+    // 1. Check if the user is actually a supplier
     if (user.role !== 'SUPPLIER') {
       setError("Access denied. This portal is for Suppliers only.");
       setLoading(false);
       return;
     }
 
-    // Store credentials exactly as the app expects
-   localStorage.setItem('accessToken', accessToken);
+    // 2. Store credentials
+    localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('userRole', user.role);
     
-    // We save user.supplier_id here because the Bidding table 
-    // expects the Supplier UUID, not the User UUID.
-    localStorage.setItem('userId', user.supplier_id); 
+    // IMPORTANT: Use user.profile_id (from your backend) or user.id
+    // Your backend sends 'profile_id', so we use that for Bidding tables
+    localStorage.setItem('userId', user.profile_id); 
     
-    localStorage.setItem('userName', user.company_name || 'Supplier');
+    localStorage.setItem('userName', user.display_name || 'Supplier');
     
-    // Optional: Keep the actual user_id under a different key if you need it later
+    // FIX: Use user.status (this was causing the crash)
+    localStorage.setItem('userStatus', user.status || 'PENDING'); 
+    
     localStorage.setItem('internal_user_id', user.id);
 
+    // 3. Navigate to portal
     navigate('/supplier/portal');
   } catch (err) {
-    // Display the exact error message from the backend
+    console.error("Login error detail:", err);
     setError(err.response?.data?.message || "Login failed. Please check your credentials.");
   } finally {
     setLoading(false);

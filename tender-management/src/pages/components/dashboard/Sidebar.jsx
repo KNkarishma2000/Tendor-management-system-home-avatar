@@ -31,7 +31,14 @@ export default function Sidebar({ role }) {
   const location = useLocation();
   const navigate = useNavigate();
   const menu = MENU_ITEMS[role] || [];
+const roleHeadings = {
+    ADMIN: 'MHA Admin',
+    RESIDENT: 'MHA Resident',
+    SUPPLIER: 'MHA Supplier'
+  };
 
+  // 2. Fallback to 'MHA Portal' if role is undefined
+  const currentHeading = roleHeadings[role] || 'MHA Portal';
   const handleLogout = async () => {
     try {
       // 1. Call the backend logout API to clear cookies/sessions
@@ -56,7 +63,9 @@ export default function Sidebar({ role }) {
         <div className="bg-yellow-400 p-2 rounded-lg">
           <Briefcase className="text-black w-6 h-6" />
         </div>
-        <span className="font-black text-xl tracking-tighter">MHA Admin</span>
+       <span className="font-black text-xl tracking-tighter">
+          {currentHeading}
+        </span>
       </div>
 
       <nav className="flex-1 px-4 mt-4 space-y-2 overflow-y-auto">

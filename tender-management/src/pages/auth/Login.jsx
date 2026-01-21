@@ -23,42 +23,41 @@ const Login = () => {
     style: { borderRadius: '20px', fontWeight: 'bold' }
   });
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  
+  const payload = isAdminMode 
+    ? { email: formData.email, password: formData.password }
+    : { flat_no: formData.flat_no, password: formData.password };
+
+  try {
+    const { data } = await authAPI.login(payload);
     
-    // We only use ONE payload and ONE API call now
-    const payload = isAdminMode 
-      ? { email: formData.email, password: formData.password }
-      : { flat_no: formData.flat_no, password: formData.password };
-
-    try {
-      // Direct call to the unified login API
-      const { data } = await authAPI.login(payload);
+    if (data.success) {
+      showSuccess(isAdminMode ? "Access Granted!" : "Welcome Home!");
       
-      if (data.success) {
-        showSuccess(isAdminMode ? "Access Granted!" : "Welcome Home!");
-        
-        // Save token and user details
       localStorage.setItem('accessToken', data.accessToken);
-localStorage.setItem('userRole', data.user.role);
-
-localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Redirect based on role
-        setTimeout(() => {
-            if (data.user.role === 'ADMIN') window.location.href = '/admin/dashboard';
-            else if (data.user.role === 'RESIDENT') window.location.href = '/dashboard/resident';
-            else window.location.href = '/supplier/portal';
-        }, 1500);
-      }
-    } catch (err) {
-      // The error message comes directly from your backend res.status(401).json({message: "..."})
-      showError(err.response?.data?.message || "Authentication failed");
-    } finally {
-      setLoading(false);
+      localStorage.setItem('userRole', data.user.role);
+      // ADD THIS LINE: Save the status from the database (e.g., 'APPROVED' or 'PENDING')
+      // localStorage.setItem('userStatus', data.user.status || 'PENDING'); 
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('userStatus', data.user.status || 'PENDING'); 
+      
+      // 2. Save the full user object (which now contains the status from the DB)
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setTimeout(() => {
+          if (data.user.role === 'ADMIN') window.location.href = '/admin/dashboard';
+          else if (data.user.role === 'RESIDENT') window.location.href = '/dashboard/resident';
+          else window.location.href = '/supplier/portal';
+      }, 1500);
     }
-  };
+  } catch (err) {
+    showError(err.response?.data?.message || "Authentication failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div>

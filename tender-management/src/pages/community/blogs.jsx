@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PenTool, X, Upload, Send, User, Loader2, BookOpen, 
-  Calendar, ChevronRight, Image as ImageIcon, ArrowLeft 
+  Calendar, ChevronRight, Image as ImageIcon, ArrowLeft, ShieldAlert 
 } from 'lucide-react';
 import { communityAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
@@ -14,6 +14,10 @@ export default function ResidentBlogs() {
   const [selectedBlog, setSelectedBlog] = useState(null);
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [selectedFiles, setSelectedFiles] = useState([]);
+
+  // Get status from localStorage (Set this during your login/profile fetch)
+  const userStatus = localStorage.getItem('userStatus'); 
+  const isApproved = userStatus === 'APPROVED';
 
   useEffect(() => {
     fetchBlogs();
@@ -32,9 +36,27 @@ export default function ResidentBlogs() {
     }
   };
 
+  // NEW: Handle Modal Open with Status Check
+  const handleOpenModal = () => {
+    if (!isApproved) {
+      toast.error("Wait for admin approval! You can share stories once your account is verified.", {
+        icon: '⏳',
+        duration: 4000
+      });
+      return;
+    }
+    setShowModal(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+
+    // Security check
+    if (!isApproved) {
+      toast.error("You are not authorized to post yet.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -44,7 +66,9 @@ export default function ResidentBlogs() {
       selectedFiles.forEach(file => data.append('images', file));
 
       await communityAPI.createBlog(data);
-      toast.success("Story submitted for approval!");
+      
+      // Success Message
+      toast.success("Story submitted! It will be live once approved by admin.");
       
       setShowModal(false);
       setFormData({ title: '', content: '' });
@@ -64,7 +88,6 @@ export default function ResidentBlogs() {
       approved: "bg-emerald-50 text-emerald-700 border-emerald-100",
       rejected: "bg-red-50 text-red-700 border-red-100"
     };
-    
     const labels = {
       pending: "Pending",
       approved: "Live",
@@ -105,7 +128,6 @@ export default function ResidentBlogs() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-               {/* Detail View Status Badge */}
                <StatusBadge status={selectedBlog.status} />
                <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-3 py-1 rounded uppercase tracking-widest">
                  Story
@@ -144,7 +166,7 @@ export default function ResidentBlogs() {
               <div className="grid grid-cols-2 gap-4 mt-12">
                 {selectedBlog.images.slice(1).map((img, idx) => (
                   <div key={idx} className="rounded-xl overflow-hidden h-64 bg-slate-100">
-                     <img src={img} className="w-full h-full object-cover" alt={`Gallery ${idx}`} />
+                      <img src={img} className="w-full h-full object-cover" alt={`Gallery ${idx}`} />
                   </div>
                 ))}
               </div>
@@ -157,6 +179,18 @@ export default function ResidentBlogs() {
 
   return (
     <div className="p-6 md:p-10 bg-slate-50 min-h-screen">
+      
+      {/* --- NEW: STATUS BANNER --- */}
+      {!isApproved && (
+        <div className="mb-8 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 text-amber-800 animate-in slide-in-from-top duration-500">
+          <ShieldAlert className="shrink-0 text-amber-600" size={22} />
+          <div className="text-sm font-medium">
+            <p className="font-bold">Account Verification Pending</p>
+            <p className="opacity-80">You will be able to share stories and post once an admin approves your profile.</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-6 mb-12">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
@@ -164,9 +198,14 @@ export default function ResidentBlogs() {
           </h1>
           <p className="text-slate-500 font-medium mt-1">Updates and stories shared by your neighborhood.</p>
         </div>
+        
+        {/* UPDATED BUTTON: Status aware styling and logic */}
         <button 
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-200 transition-all flex items-center gap-2 text-sm"
+          onClick={handleOpenModal}
+          className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 text-sm shadow-lg
+            ${isApproved 
+              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200' 
+              : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'}`}
         >
           <PenTool size={16} /> Write a Story
         </button>
@@ -192,8 +231,6 @@ export default function ResidentBlogs() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={32} /></div>
                   )}
-                  
-                  {/* Floating Status Badge on Card */}
                   <div className="absolute top-3 left-3">
                     <StatusBadge status={blog.status} />
                   </div>
