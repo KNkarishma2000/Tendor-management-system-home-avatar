@@ -24,7 +24,8 @@ router.post(
     createTender
 ); 
 
-router.get('/', getAllTenders);
+router.get('/', getAllTenders); 
+router.get('/:id', getTenderById);
 router.get('/download', protect, getTenderFileUrl);
 router.get('/:id', protect, getTenderById);
 

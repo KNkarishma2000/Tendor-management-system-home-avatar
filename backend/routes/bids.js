@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { submitBid } = require('../controllers/bidController');
+const { submitBid,getMyBidStatus } = require('../controllers/bidController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 // Configure multer to store files in memory for processing
@@ -33,5 +33,5 @@ router.post(
   uploadFields, 
   submitBid
 );
-
+router.get('/my-status/:tender_id', protect, getMyBidStatus);
 module.exports = router;

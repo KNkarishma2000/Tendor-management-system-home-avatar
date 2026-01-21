@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const residentController = require('../controllers/residentController');
 const { protect, authorize } = require('../middleware/authMiddleware');
-
+const residentFeatures = require('../controllers/residentFeatureController');
 // PUBLIC
 router.post('/register', residentController.registerResident);
 

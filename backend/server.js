@@ -7,11 +7,25 @@ const morgan = require('morgan');
 
 // Import Database Config (just to ensure connection works on startup)
 const supabase = require('./config/supabase');
+// List of allowed frontend URLs
+const allowedOrigins = [
+  'http://localhost:5173',           // Local development
+  'https://tendor-management-system-home-avata.vercel.app', // Your live Vercel URL
+];
+
 const corsOptions = {
-  origin: 'http://localhost:5173', // Your frontend URL
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl) 
+    // or if the origin is in our whitelist
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true, // Required if you are sending cookies/sessions
+  credentials: true,
 };
 
 
@@ -36,7 +50,20 @@ const app = express();
 // 1. Middleware
 // =======================
 app.use(helmet()); // Security headers
-app.use(cors(corsOptions));  // Allow frontend requests
+app.use(cors(corsOptions)); 
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    cors(corsOptions)(req, res, next);
+  } else {
+    next();
+  }
+});
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
+ // Allow frontend requests
 app.use(morgan('dev')); // Logger
 app.use(express.json()); // Parse JSON bodies (important for POST requests)
 app.use(express.urlencoded({ extended: true }));
