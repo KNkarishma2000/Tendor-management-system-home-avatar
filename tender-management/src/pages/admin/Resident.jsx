@@ -68,7 +68,7 @@ export default function ResidentManagement() {
         toast.success("Resident deleted successfully");
       } else {
         // Map 'approve'/'reject' to the status string your backend expects
-        const status = action === 'approve' ? 'approved' : 'rejected';
+        const status = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
         await authResidentAPI.approveResident(id, { status });
         toast.success(`Resident ${status} successfully`);
       }
@@ -338,3 +338,4 @@ const ContentCard = ({ title, sub, status, onReview }) => {
     </div>
   );
 };
+
