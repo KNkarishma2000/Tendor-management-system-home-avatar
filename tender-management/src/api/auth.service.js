@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://lightgoldenrodyellow-buffalo-203370.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'https://lightgoldenrodyellow-buffalo-203370.hostingersite.com/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -210,3 +210,4 @@ export const publicTenderAPI = {
 };
 
 export default apiClient;
+
