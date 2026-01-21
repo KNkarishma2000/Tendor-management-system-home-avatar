@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Trash2, Loader2, UserCheck, XCircle } from 'lucide-react';
-import { authResidentAPI } from '../../api/auth.service'; // Ensure this points to your resident routes
+import { 
+  CheckCircle, Loader2, ArrowLeft, X, Eye, Clock, Ban, Check 
+} from 'lucide-react';
+import { authResidentAPI, communityAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
 
 export default function ResidentManagement() {
   const [residents, setResidents] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [selectedResident, setSelectedResident] = useState(null);
+  const [activeTab, setActiveTab] = useState('BLOG'); 
+  const [residentContent, setResidentContent] = useState({ blogs: [], items: [], gallery: [] });
+  const [contentLoading, setContentLoading] = useState(false);
+  const [viewingItem, setViewingItem] = useState(null); 
 
   useEffect(() => {
     fetchResidents();
@@ -23,33 +31,38 @@ export default function ResidentManagement() {
     }
   };
 
-  const handleAction = async (id, action) => {
+  const handleViewResident = async (resident) => {
+    setSelectedResident(resident);
+    setContentLoading(true);
     try {
-      // Matches your backend: router.put('/approve/:resident_id'...)
-      await authResidentAPI.approveResident(id, { action }); 
-      toast.success(`Resident ${action === 'APPROVE' ? 'Approved' : 'Rejected'}`);
-      fetchResidents();
+      const res = await communityAPI.getPendingContent();
+      const { blogs, items, gallery } = res.data.pending;
+      
+      setResidentContent({
+        blogs: (blogs || []).filter(b => b.resident_id === resident.id),
+        items: (items || []).filter(i => i.resident_id === resident.id),
+        gallery: (gallery || []).filter(g => g.resident_id === resident.id)
+      });
     } catch (error) {
-      toast.error("Action failed");
+      toast.error("Error fetching content history");
+    } finally {
+      setContentLoading(false);
     }
   };
 
-const handleDelete = async (id) => {
-  if (!window.confirm("Permanently delete this resident and all their posts/items?")) return;
-  
-  try {
-    const res = await authResidentAPI.deleteResident(id);
-    if (res.data.success) {
-      toast.success("Resident and all content removed");
-      setResidents(prev => prev.filter(r => r.id !== id));
+  const handleModerate = async (id, type, status) => {
+    try {
+      // status: true = Approve, false = Reject
+      await communityAPI.moderateContent({ id, type, status });
+      toast.success(`${type} ${status ? 'Approved' : 'Rejected'}`);
+      
+      setViewingItem(null); 
+      // Re-fetch to update the UI badges
+      handleViewResident(selectedResident); 
+    } catch (error) {
+      toast.error("Moderation action failed");
     }
-  } catch (error) {
-    // This will show exactly which table is blocking the delete
-    const serverMessage = error.response?.data?.message || "Delete failed";
-    toast.error(serverMessage, { duration: 5000 }); 
-    console.error("Full Error:", error);
-  }
-};
+  };
 
   if (loading) return (
     <div className="flex h-96 items-center justify-center">
@@ -58,64 +71,179 @@ const handleDelete = async (id) => {
   );
 
   return (
-    <div className="animate-in fade-in duration-500">
-      <header className="mb-8">
-        <h1 className="text-2xl font-black text-neutral-900 uppercase tracking-tight">Resident Directory</h1>
-        <p className="text-neutral-400 font-bold text-sm">Manage approvals and resident records.</p>
-      </header>
-
-      <div className="bg-white rounded-[2.5rem] border border-neutral-100 overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-neutral-50">
-              <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400 tracking-widest">Name</th>
-              <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400 tracking-widest">Unit</th>
-              <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400 tracking-widest">Contact</th>
-              <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400 tracking-widest">Status</th>
-              <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400 tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-50">
-            {residents.map((res) => (
-              <tr key={res.id} className="group hover:bg-neutral-50/50 transition-colors">
-                <td className="px-8 py-6 font-black text-neutral-900">{res.full_name}</td>
-                <td className="px-8 py-6">
-                  <span className="bg-neutral-100 text-neutral-600 px-3 py-1.5 rounded-xl text-xs font-bold uppercase">
-                    {res.block} - {res.flat_no}
-                  </span>
-                </td>
-                <td className="px-8 py-6 text-sm font-bold text-neutral-500">{res.mobile_no}</td>
-                <td className="px-8 py-6">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                    res.status === 'APPROVED' ? 'bg-green-100 text-green-600' : 
-                    res.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
+    <div className="relative p-6">
+      
+      {/* 1. PREVIEW & MODERATION MODAL */}
+      {viewingItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-8 overflow-y-auto flex-1">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 inline-block ${
+                    viewingItem.status?.toUpperCase() === 'APPROVED' ? 'bg-green-100 text-green-700' : 
+                    viewingItem.status?.toUpperCase() === 'REJECTED' ? 'bg-red-100 text-red-700' : 
+                    'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {res.status === 'APPROVED' && <CheckCircle size={12} />}
-                    {res.status}
+                    {viewingItem.status} {viewingItem.type}
                   </span>
-                </td>
-                <td className="px-8 py-6 text-right">
-                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {res.status === 'PENDING' && (
-                      <>
-                        <button onClick={() => handleAction(res.id, 'APPROVE')} className="p-2 text-green-500 hover:bg-green-50 rounded-xl" title="Approve">
-                          <UserCheck size={20} />
-                        </button>
-                        <button onClick={() => handleAction(res.id, 'REJECT')} className="p-2 text-red-400 hover:bg-red-50 rounded-xl" title="Reject">
-                          <XCircle size={20} />
-                        </button>
-                      </>
-                    )}
-                    <button onClick={() => handleDelete(res.id)} className="p-2 text-neutral-300 hover:text-red-600 hover:bg-red-50 rounded-xl" title="Delete">
-                      <Trash2 size={20} />
-                    </button>
+                  <h2 className="text-2xl font-black text-neutral-900 leading-tight">
+                    {viewingItem.title || viewingItem.item_name || viewingItem.caption}
+                  </h2>
+                </div>
+                <button onClick={() => setViewingItem(null)} className="p-2 hover:bg-neutral-100 rounded-full transition-colors">
+                  <X size={24} className="text-neutral-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {(viewingItem.image_path || (viewingItem.images && viewingItem.images.length > 0)) && (
+                   <div className="rounded-3xl overflow-hidden bg-neutral-100 aspect-video flex items-center justify-center border border-neutral-100">
+                      <img 
+                        src={viewingItem.image_path || viewingItem.images?.[0]} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                   </div>
+                )}
+                {(viewingItem.content || viewingItem.description) && (
+                  <div className="bg-neutral-50 p-6 rounded-3xl">
+                    <h4 className="text-[10px] font-black uppercase text-neutral-400 mb-2">Content Details</h4>
+                    <p className="text-neutral-700 font-medium leading-relaxed whitespace-pre-line">
+                        {viewingItem.content || viewingItem.description}
+                    </p>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                )}
+              </div>
+            </div>
+
+            {/* ACTION BAR: Show if status is PENDING or if not yet processed */}
+            {viewingItem.status?.toUpperCase() !== 'APPROVED' && viewingItem.status?.toUpperCase() !== 'REJECTED' && (
+              <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex gap-4">
+                <button 
+                  onClick={() => handleModerate(viewingItem.id, viewingItem.type, true)}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-200"
+                >
+                  <CheckCircle size={20} /> APPROVE
+                </button>
+                <button 
+                  onClick={() => handleModerate(viewingItem.id, viewingItem.type, false)}
+                  className="flex-1 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2"
+                >
+                  <Ban size={20} /> REJECT
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2. MAIN VIEW */}
+      {selectedResident ? (
+        <div className="animate-in slide-in-from-right duration-300">
+           <button onClick={() => setSelectedResident(null)} className="flex items-center gap-2 text-neutral-400 hover:text-black font-bold mb-6">
+             <ArrowLeft size={20} /> BACK TO DIRECTORY
+           </button>
+           
+           <div className="bg-white rounded-[2.5rem] p-8 border border-neutral-100 shadow-sm mb-8">
+             <div>
+               <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Resident Profile</span>
+               <h1 className="text-3xl font-black text-neutral-900">{selectedResident.full_name}</h1>
+               <p className="text-neutral-500 font-bold">Unit: {selectedResident.block} - {selectedResident.flat_no}</p>
+             </div>
+
+             <div className="flex gap-8 mt-10 border-b border-neutral-100">
+                {['BLOG', 'MARKETPLACE', 'GALLERY'].map((tab) => {
+                  const key = tab === 'BLOG' ? 'blogs' : tab === 'MARKETPLACE' ? 'items' : 'gallery';
+                  return (
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 font-black text-sm relative transition-colors ${activeTab === tab ? 'text-black' : 'text-neutral-400'}`}>
+                      {tab} ({residentContent[key]?.length || 0})
+                      {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-yellow-400 rounded-full" />}
+                    </button>
+                  )
+                })}
+             </div>
+
+             <div className="py-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeTab === 'BLOG' && residentContent.blogs.map(blog => (
+                   <ContentCard key={blog.id} title={blog.title} sub={blog.content} status={blog.status} onReview={() => setViewingItem({...blog, type: 'BLOG'})} />
+                ))}
+                {activeTab === 'MARKETPLACE' && residentContent.items.map(item => (
+                   <ContentCard key={item.id} title={item.item_name} sub={`₹${item.price}`} status={item.status} onReview={() => setViewingItem({...item, type: 'MARKETPLACE'})} />
+                ))}
+                {activeTab === 'GALLERY' && residentContent.gallery.map(img => (
+                   <ContentCard key={img.id} title={img.caption || "Gallery Image"} sub="Image Submission" status={img.status} onReview={() => setViewingItem({...img, type: 'GALLERY'})} />
+                ))}
+                
+                {residentContent[activeTab === 'BLOG' ? 'blogs' : activeTab === 'MARKETPLACE' ? 'items' : 'gallery'].length === 0 && (
+                  <div className="col-span-2 py-20 text-center bg-neutral-50 rounded-[2rem] border-2 border-dashed border-neutral-100">
+                    <p className="text-neutral-400 font-bold uppercase tracking-widest text-xs">No content found.</p>
+                  </div>
+                )}
+             </div>
+           </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-[2.5rem] border border-neutral-100 overflow-hidden shadow-sm">
+           <table className="w-full text-left">
+             <thead>
+               <tr className="border-b border-neutral-50">
+                 <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400">Resident Name</th>
+                 <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400">Unit Number</th>
+                 <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400 text-right">Action</th>
+               </tr>
+             </thead>
+             <tbody>
+               {residents.map(res => (
+                 <tr key={res.id} onClick={() => handleViewResident(res)} className="group hover:bg-neutral-50 transition-colors cursor-pointer border-b border-neutral-50">
+                   <td className="px-8 py-6 font-black text-neutral-900 group-hover:text-yellow-600">{res.full_name}</td>
+                   <td className="px-8 py-6 font-bold text-neutral-400 uppercase text-xs">{res.block}-{res.flat_no}</td>
+                   <td className="px-8 py-6 text-right font-black text-neutral-300 group-hover:text-black">VIEW PROFILE →</td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+        </div>
+      )}
     </div>
   );
 }
+
+const ContentCard = ({ title, sub, status, onReview }) => {
+  const s = status?.toUpperCase();
+  const isPending = s !== 'APPROVED' && s !== 'REJECTED';
+
+  const getStatusStyles = () => {
+    if (s === 'APPROVED') return 'bg-green-100 text-green-700 border-green-200';
+    if (s === 'REJECTED') return 'bg-red-100 text-red-700 border-red-200';
+    return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+  };
+
+  return (
+    <div 
+      className="p-5 border border-neutral-100 rounded-3xl bg-white flex justify-between items-center group hover:border-yellow-200 hover:shadow-md transition-all cursor-pointer" 
+      onClick={onReview}
+    >
+      <div className="max-w-[65%]">
+        <div className="flex items-center gap-2 mb-1">
+          <h4 className="font-black text-neutral-900 truncate uppercase text-sm tracking-tight">{title}</h4>
+          <span className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-black border ${getStatusStyles()}`}>
+            {s === 'APPROVED' ? <CheckCircle size={10} /> : s === 'REJECTED' ? <Ban size={10} /> : <Clock size={10} />} {status}
+          </span>
+        </div>
+        <p className="text-xs text-neutral-400 line-clamp-1 font-medium">{sub}</p>
+      </div>
+      
+      {isPending ? (
+        <button className="flex items-center gap-2 bg-yellow-400 px-4 py-2.5 rounded-xl text-[10px] font-black text-black shadow-sm hover:bg-black hover:text-white transition-all uppercase tracking-widest">
+          <Eye size={14} /> Review
+        </button>
+      ) : (
+        <div className="flex flex-col items-end">
+          <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">Processed</span>
+          <span className="text-[8px] font-bold text-neutral-400">Click to View</span>
+        </div>
+      )}
+    </div>
+  );
+};

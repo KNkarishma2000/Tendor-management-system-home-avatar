@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { Building, Lock, User, Hash, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Building, Lock, User, Hash, ArrowRight, ShieldCheck} from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { authAPI } from '../../api/auth.service'; // Using the centralized API file
 import toast from 'react-hot-toast';
-
+import { Link } from 'react-router-dom';
 const Login = () => {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ localStorage.setItem('user', JSON.stringify(data.user));
         // Redirect based on role
         setTimeout(() => {
             if (data.user.role === 'ADMIN') window.location.href = '/admin/dashboard';
-            else if (data.user.role === 'RESIDENT') window.location.href = '/resident/home';
+            else if (data.user.role === 'RESIDENT') window.location.href = '/dashboard/resident';
             else window.location.href = '/supplier/portal';
         }, 1500);
       }
@@ -160,8 +160,22 @@ localStorage.setItem('user', JSON.stringify(data.user));
                 {loading ? "Verifying..." : "Unlock Dashboard"}
                 {!loading && <ArrowRight className="w-5 h-5" />}
               </button>
+              
+              
             </form>
-
+{!isAdminMode && (
+  <div className="mt-6 text-center">
+    <p className="text-neutral-500 font-bold">
+      Don't have an account?{' '}
+      <Link 
+        to="/resident-register" 
+        className="text-neutral-900 underline decoration-yellow-400 decoration-2 underline-offset-4 hover:text-yellow-600 transition-colors"
+      >
+        Register Here
+      </Link>
+    </p>
+  </div>
+)}
             <div className="mt-8 flex items-center justify-center gap-2 text-neutral-400 text-sm font-bold">
               <ShieldCheck className="w-4 h-4 text-green-500" />
               Secure AES-256 Encrypted Connection

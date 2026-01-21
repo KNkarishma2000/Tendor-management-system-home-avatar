@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserPlus, Building, Mail, Lock, Phone, Users, ArrowRight, ShieldCheck } from 'lucide-react';
-import { authAPI } from '../../api/auth.service'; // Importing the API service we built
+import { authResidentAPI } from '../../api/auth.service'; // Importing the API service we built
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -29,7 +29,7 @@ export default function RegisterResident() {
     setMessage({ type: '', text: '' });
 
     try {
-      const response = await authAPI.registerResident(formData);
+     const response = await authResidentAPI.registerResident(formData);
       setMessage({ type: 'success', text: response.data.message });
       // Clear form on success
       setFormData({ full_name: '', email: '', password: '', block: '', flat_no: '', mobile_no: '', family_members: 1 });

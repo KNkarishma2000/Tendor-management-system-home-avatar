@@ -2,8 +2,11 @@ import React from 'react';
 import Sidebar from '../pages/components/dashboard/Sidebar'; 
 import { Outlet } from 'react-router-dom';
 
-export default function DashboardLayout() { // Removed { children }
-  const role = localStorage.getItem('userRole') || 'ADMIN';
+export default function DashboardLayout() {
+  // Get dynamic data from storage
+  const role = localStorage.getItem('userRole') || 'RESIDENT';
+  const userName = localStorage.getItem('userName') || (role === 'ADMIN' ? 'Admin User' : 'Resident');
+  const userSub = role === 'ADMIN' ? 'Estate Manager' : 'Verified Resident';
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
@@ -14,17 +17,21 @@ export default function DashboardLayout() { // Removed { children }
           <div className="relative w-96">
             <input 
               type="text" 
-              placeholder="Search data..." 
+              placeholder={`Search ${role.toLowerCase()} portal...`} 
               className="w-full bg-neutral-100 border-none rounded-2xl py-3 px-6 text-sm font-bold"
             />
           </div>
+          
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-sm font-black text-neutral-900 leading-tight">Admin User</p>
-              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Estate Manager</p>
+              <p className="text-sm font-black text-neutral-900 leading-tight">{userName}</p>
+              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">{userSub}</p>
             </div>
-            <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center font-black text-neutral-900 shadow-md">
-              AD
+            {/* Dynamic Avatar Colors */}
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-neutral-900 shadow-md ${
+              role === 'ADMIN' ? 'bg-yellow-400' : 'bg-blue-400 text-white'
+            }`}>
+              {userName.substring(0, 2).toUpperCase()}
             </div>
           </div>
         </header>

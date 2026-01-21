@@ -16,34 +16,48 @@ export default function LoginSupplier() {
     if (error) setError(''); // Clear error when user types
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+const handleLogin = async (e) => {
+  e.preventDefault(); // <--- CRITICAL: Prevent page reload
+  setLoading(true);
+  setError('');
 
-    try {
-      // 1. Call the login API (Assumes your authAPI has a login method)
-      const response = await authAPI.login(formData);
-      const { token, user } = response.data;
+  try {
+    // We only send email and password for Suppliers
+    const response = await authAPI.login({ 
+      email: formData.email, 
+      password: formData.password 
+    });
 
-      // 2. Security Check: Only allow Suppliers here
-      if (user.role !== 'SUPPLIER') {
-        throw new Error("Access denied. This portal is for registered Suppliers only.");
-      }
+    const { accessToken, user } = response.data;
 
-      // 3. Store credentials (Local Storage or Context)
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      // 4. Redirect to Supplier Tender Dashboard
-      navigate('/supplier/tenders');
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || "Invalid credentials.");
-    } finally {
+    // Check if the user is actually a supplier
+    if (user.role !== 'SUPPLIER') {
+      setError("Access denied. This portal is for Suppliers only.");
       setLoading(false);
+      return;
     }
-  };
 
+    // Store credentials exactly as the app expects
+   localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('userRole', user.role);
+    
+    // We save user.supplier_id here because the Bidding table 
+    // expects the Supplier UUID, not the User UUID.
+    localStorage.setItem('userId', user.supplier_id); 
+    
+    localStorage.setItem('userName', user.company_name || 'Supplier');
+    
+    // Optional: Keep the actual user_id under a different key if you need it later
+    localStorage.setItem('internal_user_id', user.id);
+
+    navigate('/supplier/portal');
+  } catch (err) {
+    // Display the exact error message from the backend
+    setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Header />

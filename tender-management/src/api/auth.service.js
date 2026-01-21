@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://darkgreen-crab-426374.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -74,34 +74,33 @@ export const tenderAPI = {
 // --- COMMUNITY & RESIDENT FEATURES ---
 
 export const communityAPI = {
-  // Carnivals
-  getCarnivals: () => apiClient.get('/community/carnivals'),
-  createCarnival: (data) => apiClient.post('/community/carnivals', data),
+getNotices: () => apiClient.get('/community/notices/public'),
+getBlogDetails: (id) => apiClient.get(`/community/blogs/public/${id}`),
+  // Rename this or add the alias so the component can find it
+  getApprovedBlogs: () => apiClient.get('/community/blogs/public'), 
+  
+  // Keep the old one if other components use it, or just use the one above
+  getBlogs: () => apiClient.get('/community/blogs/public'),
 
-  // Notices
-  getNotices: () => apiClient.get('/community/notices'),
-  createNotice: (data) => apiClient.post('/community/notices', data),
-deleteNotice: (id) => apiClient.delete(`/community/notices/${id}`),
-  // Blogs (Resident Content)
-  getBlogs: () => apiClient.get('/community/blogs/approved'),
-  createBlog: (formData) => apiClient.post('/community/blogs', formData, {
+  getPublicMarketplace: () => apiClient.get('/community/marketplace/public'),
+  getPublicGallery: () => apiClient.get('/community/gallery/public'),
+  getCarnivals: () => apiClient.get('/community/carnivals/public'),   // ✅ ADD THIS
+
+  getMarketplace: () => apiClient.get('/community/marketplace/feed'),
+  getGallery: () => apiClient.get('/community/gallery/feed'),
+
+  uploadToGallery: (formData) => apiClient.post('/community/gallery', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
 
-  // Marketplace
-  getMarketplace: () => apiClient.get('/community/marketplace/approved'),
-  createMarketplaceItem: (formData) => apiClient.post('/community/marketplace', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-
-  // Admin Moderation
   getPendingContent: () => apiClient.get('/community/admin/pending-content'),
   moderateContent: (moderationData) => apiClient.put('/community/moderate', moderationData),
 };
+
 export const BiddingTenderAPI = {
   // 1. Supplier: Submit a full Bid package
   // data should be a FormData object containing technical_bid, financial_bid, emd_proof, etc.
-  submitBid: (formData) => apiClient.post('/bids/submit', formData, {
+ submitBid: (formData) => apiClient.post('/bids/submit', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
 
@@ -111,7 +110,7 @@ export const BiddingTenderAPI = {
   // 3. Admin: Award Tender to a winner
   awardWinner: (tenderId, winningBidId) => 
     apiClient.post('/awards/award-winner', { tender_id: tenderId, winning_bid_id: winningBidId }),
-
+checkMyBidStatus: (tenderId) => apiClient.get(`/bids/my-status/${tenderId}`),
   // 4. Admin: Finalize Award (Upload LOI and Contract)
   // formData must contain 'loi_file' and 'contract_file'
   finalizeAward: (awardId, formData) => 
@@ -197,8 +196,10 @@ export const vendorAPI = {
   // Potential future helper: Get vendor history
   getVendorPerformance: (supplierId) => apiClient.get(`/vendors/performance/${supplierId}`),
 };
-
+// Add this or update tenderAdminAPI
+export const publicTenderAPI = {
+  // Anyone can call these
+  getTenders: () => apiClient.get('/tenders'),
+  getTenderDetails: (id) => apiClient.get(`/tenders/${id}`),
+};
 export default apiClient;
-
-
-

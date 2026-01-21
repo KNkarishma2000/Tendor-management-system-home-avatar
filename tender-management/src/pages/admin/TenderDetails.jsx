@@ -7,15 +7,13 @@ import {
 } from 'lucide-react';
 import { tenderAdminAPI } from '../../api/auth.service'; 
 import toast from 'react-hot-toast';
+import BidsManager from './BidsManager'; // Ensure this is imported
 
-// Import the specific BidsManager component you created
-import BidsManager from './BidsManager'; 
-
-export default function TenderDetails() {
+export default function TenderDetails({ isSupplierView = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState('overview'); // Toggle state
+  const [activeTab, setActiveTab] = useState('overview');
   const [tender, setTender] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,10 +21,8 @@ export default function TenderDetails() {
     try {
       setLoading(true);
       const tenderRes = await tenderAdminAPI.getAllTenders();
-      
       const allTenders = tenderRes.data.data || [];
       const foundTender = allTenders.find(t => String(t.id) === String(id));
-      
       setTender(foundTender);
     } catch (error) {
       console.error("Fetch Error:", error);
@@ -51,14 +47,11 @@ export default function TenderDetails() {
     }
   };
 
-  // Safe data extraction for sub-components
   const timeline = Array.isArray(tender?.tender_timeline) 
-    ? tender.tender_timeline[0] 
-    : tender?.tender_timeline || null;
+    ? tender.tender_timeline[0] : tender?.tender_timeline || null;
 
   const eligibility = Array.isArray(tender?.tender_eligibility_criteria) 
-    ? tender.tender_eligibility_criteria[0] 
-    : tender?.tender_eligibility_criteria || null;
+    ? tender.tender_eligibility_criteria[0] : tender?.tender_eligibility_criteria || null;
 
   const documents = tender?.tender_documents || [];
 
@@ -70,43 +63,43 @@ export default function TenderDetails() {
   );
 
   return (
-    <div className="bg-[#FAFAFA] min-h-screen p-6 md:p-10">
+    <div className={`${!isSupplierView ? 'bg-[#FAFAFA] min-h-screen p-6 md:p-10' : ''}`}>
       
-      {/* HEADER & TAB NAVIGATION */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-        <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-neutral-400 hover:text-black font-black text-xs uppercase tracking-widest transition-all">
-          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
-        </button>
-
-        {/* Dynamic Tab Switcher */}
-        <div className="flex bg-white p-1.5 rounded-[1.5rem] border border-neutral-200 shadow-sm">
-          <button 
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
-          >
-            <ListChecks size={14}/> Tender Overview
+      {/* HEADER & TAB NAVIGATION - Only show if NOT supplier view */}
+      {!isSupplierView && (
+        <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+          <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-neutral-400 hover:text-black font-black text-xs uppercase tracking-widest transition-all">
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
           </button>
-          <button 
-            onClick={() => setActiveTab('bids')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'bids' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
-          >
-            <Trophy size={14}/> Bidders & Comparison
-          </button>
-        </div>
 
-        <div className="flex gap-3">
-          <span className="px-4 py-2 bg-white border border-neutral-200 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">
-            ID: {id.slice(0, 8)}...
-          </span>
-          <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${tender?.status === 'DRAFT' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-            {tender?.status}
-          </span>
-        </div>
-      </div>
+          <div className="flex bg-white p-1.5 rounded-[1.5rem] border border-neutral-200 shadow-sm">
+            <button 
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
+            >
+              <ListChecks size={14}/> Tender Overview
+            </button>
+            <button 
+              onClick={() => setActiveTab('bids')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'bids' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
+            >
+              <Trophy size={14}/> Bidders & Comparison
+            </button>
+          </div>
 
-      {/* CONDITIONAL TAB CONTENT */}
-      {activeTab === 'overview' ? (
-        /* --- ORIGINAL TENDER DETAILS VIEW --- */
+          <div className="flex gap-3">
+            <span className="px-4 py-2 bg-white border border-neutral-200 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">
+              ID: {id.slice(0, 8)}...
+            </span>
+            <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${tender?.status === 'DRAFT' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+              {tender?.status}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* CONDITIONAL CONTENT */}
+      {(isSupplierView || activeTab === 'overview') ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
           <div className="lg:col-span-8 space-y-8">
             <section className="bg-white rounded-[2rem] p-10 border border-neutral-100 shadow-sm relative overflow-hidden">
@@ -184,7 +177,6 @@ export default function TenderDetails() {
           </div>
         </div>
       ) : (
-        /* --- BIDS MANAGEMENT VIEW (Renders your BidsManager.jsx) --- */
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <BidsManager tenderId={id} tenderStatus={tender?.status} />
         </div>
@@ -193,8 +185,7 @@ export default function TenderDetails() {
   );
 }
 
-/** * SUB-COMPONENTS 
- */
+// Sub-components (DetailBox, EligibilityRow, WeightBar, TimelineItem) remain exactly the same as your original code
 const DetailBox = ({ label, value, icon, color = "text-neutral-900" }) => (
   <div>
     <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-2 flex items-center gap-1">{icon} {label}</p>

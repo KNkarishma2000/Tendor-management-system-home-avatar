@@ -18,6 +18,20 @@ import TenderManagement from './pages/admin/TenderManagement';
 import TenderDetails from './pages/admin/TenderDetails';
 import CreateTender from './pages/admin/CreateTender';
 import SupplierDirectory from './pages/admin/SupplierManagement';
+import ResidentDashboard from './pages/dashboard/ResidentDashboard';
+import CreateListing from './pages/community/Marketplace';
+import ResidentBlogs from './pages/community/blogs';
+import ResidentGallery from './pages/community/ResidentGallery';
+import SupplierDashboard from './pages/dashboard/SupplierDashboard';
+import AvailableTenders from './pages/tenders/TenderList';
+import BidSubmissionPage from './pages/tenders/BidSubmission';
+import SupplierTenderPortal from './pages/tenders/SupplierTenderPortal';
+import PublicTenderList from './layouts/PublicListTenders';
+import PublicTenderDetails from './layouts/TenderDetails';
+import AllCarnivals from './layouts/AllCarnivals';
+import AllBlogs from './layouts/Allblogs';
+import BlogDetails from './layouts/BlogDetails';
+import AllGallery from './layouts/AllGallery';
 
 
 
@@ -27,10 +41,15 @@ function App() {
       {/* Public Routes */}
       <Route path="/" element={<PublicLayout />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/tenders" element={<PublicTenderList />} />
       <Route path="/supplier-login" element={<LoginSupplier />} />
+       <Route path="/gallery" element={<AllGallery />} />
+            <Route path="/carnivals" element={<AllCarnivals />} />
       <Route path="/resident-register" element={<RegisterResident />} />
       <Route path="/supplier-register" element={<RegisterSupplier />} />
-
+     <Route path="/tenders/:id" element={<PublicTenderDetails />} />
+        <Route path="/blog" element={<AllBlogs />} />
+            <Route path="/blog/:id" element={<BlogDetails />} />
       {/* Admin Dashboard Routes */}
       <Route path="/admin" element={<DashboardLayout />}>
         {/* Redirect /admin to /admin/dashboard */}
@@ -49,6 +68,27 @@ function App() {
              <Route path="tenders/edit/:id" element={<CreateTender />} />
              
       </Route>
+      {/* RESIDENT ROUTES */}
+      <Route path="/dashboard" element={<DashboardLayout />}>
+        <Route index element={<Navigate to="resident" replace />} />
+                <Route path="marketplace" element={<CreateListing />} />
+                    <Route path="blogs" element={<ResidentBlogs />} />
+                           <Route path="gallery" element={<ResidentGallery />} />
+        <Route path="resident" element={<ResidentDashboard />} />
+        {/* Add these as you build them:
+        <Route path="marketplace" element={<Marketplace />} />
+        <Route path="events" element={<CommunityEvents />} /> 
+        */}
+      </Route>
+      {/* SUPPLIER ROUTES */}
+<Route path="/supplier" element={<DashboardLayout />}>
+    <Route index element={<Navigate to="portal" replace />} />
+    <Route path="portal" element={<SupplierDashboard />} />
+    <Route path="tender" element={<AvailableTenders />} />
+      <Route path="bids" element={<BidSubmissionPage />} />
+    {/* This is the key connection point */}
+    <Route path="tender/:id" element={<SupplierTenderPortal />} />
+</Route>
 
       {/* Fallback */}
       <Route path="*" element={<div className="p-10 font-black text-center">404 - Page Not Found</div>} />
