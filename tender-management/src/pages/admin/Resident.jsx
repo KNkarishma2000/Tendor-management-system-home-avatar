@@ -1,13 +1,7 @@
-
-
-
-
-
-
-          import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  CheckCircle, Loader2, ArrowLeft, X, Eye, Clock, Ban, Check, 
-  Trash2, UserCheck, UserX 
+  Loader2, ArrowLeft, X, Eye, Clock, Ban, CheckCircle, 
+  UserCheck
 } from 'lucide-react';
 import { authResidentAPI, communityAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
@@ -51,46 +45,40 @@ export default function ResidentManagement() {
         gallery: (gallery || []).filter(g => g.resident_id === resident.id)
       });
     } catch (error) {
-      // Content fetching might fail if no content exists, purely optional
-      // console.log("No pending content found specific to this user");
+      // Ignore if no content found
     } finally {
       setContentLoading(false);
     }
   };
 
-  // --- NEW: Handle Resident Approval/Rejection/Deletion ---
+  // --- UPDATED: RESIDENT ACTIONS (FIXED UPPERCASE) ---
   const handleResidentAction = async (id, action) => {
-    // action: 'approve', 'reject', 'delete'
     try {
-      if (action === 'delete') {
-        if (!window.confirm("Are you sure you want to delete this resident permanently?")) return;
-        await authResidentAPI.deleteResident(id);
-        toast.success("Resident deleted successfully");
-      } else {
-        // Map 'approve'/'reject' to the status string your backend expects
-        const status = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
-        await authResidentAPI.approveResident(id, { status });
-        toast.success(`Resident ${status} successfully`);
-      }
+      // FIX: Send UPPERCASE strings 'APPROVED' or 'REJECTED'
+      const statusToSend = action === 'approve' ? 'APPROVED' : 'REJECTED';
+      
+      // 1. Optimistic UI Update
+      setSelectedResident(prev => ({ ...prev, status: statusToSend }));
 
-      // Refresh list and close profile view
-      setSelectedResident(null);
+      // 2. API Call
+      await authResidentAPI.approveResident(id, { status: statusToSend });
+      toast.success(`Resident ${statusToSend === 'APPROVED' ? 'Approved' : 'Rejected'}`);
+
+      // 3. Refresh the main list
       fetchResidents();
     } catch (error) {
       console.error(error);
       toast.error(`Failed to ${action} resident`);
+      fetchResidents(); // Revert on error
     }
   };
 
-  // --- Existing Content Moderation ---
   const handleModerate = async (id, type, status) => {
     try {
-      // status: true = Approve, false = Reject
+      // status: true/false for content moderation
       await communityAPI.moderateContent({ id, type, status });
       toast.success(`${type} ${status ? 'Approved' : 'Rejected'}`);
-      
       setViewingItem(null); 
-      // Re-fetch to update the UI badges
       handleViewResident(selectedResident); 
     } catch (error) {
       toast.error("Moderation action failed");
@@ -106,21 +94,14 @@ export default function ResidentManagement() {
   return (
     <div className="relative p-6">
       
-      {/* 1. PREVIEW & MODERATION MODAL (UNCHANGED) */}
+      {/* 1. PREVIEW MODAL (UNCHANGED) */}
       {viewingItem && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div className="p-8 overflow-y-auto flex-1">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 inline-block ${
-                    viewingItem.status?.toUpperCase() === 'APPROVED' ? 'bg-green-100 text-green-700' : 
-                    viewingItem.status?.toUpperCase() === 'REJECTED' ? 'bg-red-100 text-red-700' : 
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {viewingItem.status} {viewingItem.type}
-                  </span>
-                  <h2 className="text-2xl font-black text-neutral-900 leading-tight">
+                   <h2 className="text-2xl font-black text-neutral-900 leading-tight">
                     {viewingItem.title || viewingItem.item_name || viewingItem.caption}
                   </h2>
                 </div>
@@ -141,7 +122,6 @@ export default function ResidentManagement() {
                 )}
                 {(viewingItem.content || viewingItem.description) && (
                   <div className="bg-neutral-50 p-6 rounded-3xl">
-                    <h4 className="text-[10px] font-black uppercase text-neutral-400 mb-2">Content Details</h4>
                     <p className="text-neutral-700 font-medium leading-relaxed whitespace-pre-line">
                         {viewingItem.content || viewingItem.description}
                     </p>
@@ -149,20 +129,12 @@ export default function ResidentManagement() {
                 )}
               </div>
             </div>
-
-            {/* CONTENT ACTION BAR */}
             {viewingItem.status?.toUpperCase() !== 'APPROVED' && viewingItem.status?.toUpperCase() !== 'REJECTED' && (
               <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex gap-4">
-                <button 
-                  onClick={() => handleModerate(viewingItem.id, viewingItem.type, true)}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-200"
-                >
+                <button onClick={() => handleModerate(viewingItem.id, viewingItem.type, true)} className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-200">
                   <CheckCircle size={20} /> APPROVE CONTENT
                 </button>
-                <button 
-                  onClick={() => handleModerate(viewingItem.id, viewingItem.type, false)}
-                  className="flex-1 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2"
-                >
+                <button onClick={() => handleModerate(viewingItem.id, viewingItem.type, false)} className="flex-1 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2">
                   <Ban size={20} /> REJECT CONTENT
                 </button>
               </div>
@@ -179,54 +151,57 @@ export default function ResidentManagement() {
            </button>
            
            <div className="bg-white rounded-[2.5rem] p-8 border border-neutral-100 shadow-sm mb-8">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-               <div>
-                 <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 ${
-                    selectedResident.status === 'approved' ? 'bg-green-100 text-green-700' :
-                    selectedResident.status === 'rejected' ? 'bg-red-100 text-red-700' :
+             <div className="flex flex-col md:flex-row justify-between items-start gap-6">
+               <div className="flex-1">
+                 {/* Status Badge */}
+                 <span className={`inline-block px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest mb-3 ${
+                    selectedResident.status?.toUpperCase() === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                    selectedResident.status?.toUpperCase() === 'REJECTED' ? 'bg-red-100 text-red-700' :
                     'bg-yellow-100 text-yellow-700'
                  }`}>
+                    {selectedResident.status?.toUpperCase() === 'APPROVED' && <CheckCircle className="inline w-3 h-3 mr-1 -mt-0.5"/>}
+                    {selectedResident.status?.toUpperCase() === 'REJECTED' && <Ban className="inline w-3 h-3 mr-1 -mt-0.5"/>}
                     {selectedResident.status || 'PENDING'}
                  </span>
-                 <h1 className="text-3xl font-black text-neutral-900">{selectedResident.full_name}</h1>
-                 <p className="text-neutral-500 font-bold">Unit: {selectedResident.block} - {selectedResident.flat_no}</p>
-                 <p className="text-neutral-400 text-sm mt-1">{selectedResident.email} • {selectedResident.phone_number}</p>
+                 
+                 <h1 className="text-4xl font-black text-neutral-900 mb-2">{selectedResident.full_name}</h1>
+                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-neutral-500 font-bold">
+                   <span>Unit: <span className="text-neutral-900">{selectedResident.block} - {selectedResident.flat_no}</span></span>
+                   <span>•</span>
+                   <span>{selectedResident.email}</span>
+                   <span>•</span>
+                   <span>{selectedResident.phone_number}</span>
+                 </div>
                </div>
 
-               {/* --- NEW: RESIDENT ACTION BUTTONS --- */}
-               <div className="flex gap-3">
-                 {/* Only show Approve/Reject if not already approved */}
-                 {selectedResident.status !== 'approved' && (
+               {/* --- ACTION BUTTONS (NO DELETE BUTTON) --- */}
+               <div className="flex gap-3 w-full md:w-auto">
+                  {/* APPROVE BUTTON (Hide if already approved) */}
+                  {selectedResident.status?.toUpperCase() !== 'APPROVED' && (
                     <button 
                       onClick={() => handleResidentAction(selectedResident.id, 'approve')}
-                      className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-green-200"
+                      className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-wide transition-all shadow-lg shadow-green-200 flex items-center justify-center gap-2"
                     >
-                      <UserCheck size={18} /> Approve User
+                      <UserCheck size={20} /> Approve
                     </button>
-                 )}
-                 
-                 {/* Show Reject if Pending */}
-                 {selectedResident.status === 'pending' && (
+                  )}
+
+                  {/* REJECT BUTTON (Hide if already rejected) */}
+                  {selectedResident.status?.toUpperCase() !== 'REJECTED' && (
                     <button 
                       onClick={() => handleResidentAction(selectedResident.id, 'reject')}
-                      className="bg-neutral-100 hover:bg-red-100 text-neutral-600 hover:text-red-600 px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
+                      className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-wide transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2"
                     >
-                      <Ban size={18} /> Reject
+                      <Ban size={20} /> Reject
                     </button>
-                 )}
-
-                 {/* Always show Delete */}
-                 <button 
-                    onClick={() => handleResidentAction(selectedResident.id, 'delete')}
-                    className="border-2 border-red-100 text-red-500 hover:bg-red-50 px-4 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
-                    title="Delete Resident"
-                 >
-                   <Trash2 size={18} />
-                 </button>
+                  )}
                </div>
              </div>
 
-             <div className="flex gap-8 mt-10 border-b border-neutral-100">
+             <div className="h-px bg-neutral-100 my-8"></div>
+
+             {/* TABS */}
+             <div className="flex gap-8 border-b border-neutral-100">
                 {['BLOG', 'MARKETPLACE', 'GALLERY'].map((tab) => {
                   const key = tab === 'BLOG' ? 'blogs' : tab === 'MARKETPLACE' ? 'items' : 'gallery';
                   return (
@@ -273,25 +248,20 @@ export default function ResidentManagement() {
                    <td className="px-8 py-6">
                       <div className="flex items-center gap-3">
                         <span className="font-black text-neutral-900 group-hover:text-yellow-600 transition-colors">{res.full_name}</span>
-                        {/* --- NEW: STATUS BADGE IN TABLE --- */}
-                        {res.status !== 'approved' && (
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                             res.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'
+                        {/* Status Badge in Table */}
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                             res.status?.toUpperCase() === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                             res.status?.toUpperCase() === 'REJECTED' ? 'bg-red-100 text-red-600' : 
+                             'bg-yellow-100 text-yellow-700'
                           }`}>
                             {res.status || 'Pending'}
                           </span>
-                        )}
                       </div>
                    </td>
                    <td className="px-8 py-6 font-bold text-neutral-400 uppercase text-xs">{res.block}-{res.flat_no}</td>
                    <td className="px-8 py-6 text-right font-black text-neutral-300 group-hover:text-black">VIEW PROFILE →</td>
                  </tr>
                ))}
-               {residents.length === 0 && (
-                 <tr>
-                   <td colSpan="3" className="px-8 py-12 text-center text-neutral-400 font-bold">No residents found.</td>
-                 </tr>
-               )}
              </tbody>
            </table>
         </div>
@@ -303,7 +273,6 @@ export default function ResidentManagement() {
 const ContentCard = ({ title, sub, status, onReview }) => {
   const s = status?.toUpperCase();
   const isPending = s !== 'APPROVED' && s !== 'REJECTED';
-
   const getStatusStyles = () => {
     if (s === 'APPROVED') return 'bg-green-100 text-green-700 border-green-200';
     if (s === 'REJECTED') return 'bg-red-100 text-red-700 border-red-200';
@@ -338,4 +307,3 @@ const ContentCard = ({ title, sub, status, onReview }) => {
     </div>
   );
 };
-
