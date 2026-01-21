@@ -113,11 +113,7 @@ export default function ResidentBlogs() {
             </div>
           </div>
 
-          <div className="text-center md:text-left">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight uppercase">
-              {selectedBlog.title}
-            </h1>
-          </div>
+          
 
           <div className="w-full rounded-2xl overflow-hidden bg-slate-50 shadow-sm">
             {selectedBlog.images && selectedBlog.images.length > 0 ? (
@@ -132,7 +128,11 @@ export default function ResidentBlogs() {
               </div>
             )}
           </div>
-
+<div className="text-center md:text-left mb-1">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight uppercase">
+              {selectedBlog.title}
+            </h1>
+          </div>
           <div className=" mx-auto pt-6">
             <div className="prose prose-slate prose-lg max-w-none">
               <p className="text-slate-700 text-lg leading-relaxed whitespace-pre-wrap font-light">
@@ -282,4 +282,5 @@ export default function ResidentBlogs() {
   );
 
 }
+
 
