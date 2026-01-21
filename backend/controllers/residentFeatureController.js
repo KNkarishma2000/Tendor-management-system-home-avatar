@@ -20,15 +20,27 @@ exports.createBlog = async (req, res) => {
     const { title, content } = req.body;
     const files = req.files;
 
-    // Get resident ID
-    const { data: resident } = await supabase.from('residents').select('id').eq('user_id', req.user.id).single();
-    if (!resident) throw new Error("Resident profile not found");
+    // 1. Fetch resident ID AND Status
+    const { data: resident, error: resError } = await supabase
+      .from('residents')
+      .select('id, status') // Added status here
+      .eq('user_id', req.user.id)
+      .single();
 
-    // Handle File Uploads for Blog
+    if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
+
+    // 2. BLOCK if not approved
+    if (resident.status !== 'APPROVED') {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Action restricted. Your account is still pending admin approval." 
+      });
+    }
+
+    // 3. Handle File Uploads (Only runs if approved)
     let uploadedImagePaths = [];
     if (files && files.length > 0) {
       for (const file of files) {
-        // We use the 'resident-blogs' bucket
         const path = await uploadBuffer('resident-blogs', resident.id, file);
         uploadedImagePaths.push(path);
       }
@@ -40,7 +52,7 @@ exports.createBlog = async (req, res) => {
         resident_id: resident.id, 
         title, 
         content, 
-        images: uploadedImagePaths, // Saves array of paths
+        images: uploadedImagePaths, 
         status: 'pending'
       }]);
 
@@ -50,25 +62,32 @@ exports.createBlog = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // --- 2. RESIDENT: LIST MARKETPLACE ITEM (Single Image) ---
 // --- 2. RESIDENT: LIST MARKETPLACE ITEM (Single Image) ---
 exports.listMarketplaceItem = async (req, res) => {
   try {
     const { item_name, description, price, category, contact_no } = req.body;
-    const file = req.file; // This comes from upload.single('image_path')
+    const file = req.file;
 
-    const { data: resident } = await supabase
+    // 1. Fetch profile and Status
+    const { data: resident, error: resError } = await supabase
       .from('residents')
-      .select('id, mobile_no')
+      .select('id, status, mobile_no') // Added status here
       .eq('user_id', req.user.id)
       .single();
 
-    if (!resident) throw new Error("Resident profile not found");
+    if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
+
+    // 2. BLOCK if not approved
+    if (resident.status !== 'APPROVED') {
+      return res.status(403).json({ 
+        success: false, 
+        message: "You cannot list items for sale until your account is approved." 
+      });
+    }
 
     let itemImagePath = null;
     if (file) {
-      // Helper function you wrote to upload to Supabase storage
       itemImagePath = await uploadBuffer('marketplace-items', resident.id, file);
     }
 
@@ -78,7 +97,7 @@ exports.listMarketplaceItem = async (req, res) => {
         resident_id: resident.id, 
         item_name, 
         description, 
-        price: parseFloat(price), // IMPORTANT: Convert string to number
+        price: parseFloat(price),
         category: category || 'General',
         contact_no: contact_no || resident.mobile_no,
         image_path: itemImagePath, 
@@ -211,16 +230,24 @@ exports.getPendingContent = async (req, res) => {
 exports.uploadToGallery = async (req, res) => {
   try {
     const { caption } = req.body;
-    const files = req.files; // Ensure your route uses upload.array('photos')
+    const files = req.files;
 
-    // Get resident ID from token
-    const { data: resident } = await supabase
+    // 1. Fetch profile and Status
+    const { data: resident, error: resError } = await supabase
       .from('residents')
-      .select('id')
+      .select('id, status') // Added status here
       .eq('user_id', req.user.id)
       .single();
 
-    if (!resident) throw new Error("Resident profile not found");
+    if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
+
+    // 2. BLOCK if not approved
+    if (resident.status !== 'APPROVED') {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Gallery uploads are restricted for pending accounts." 
+      });
+    }
 
     if (!files || files.length === 0) {
       return res.status(400).json({ success: false, message: "Please upload at least one photo" });
@@ -232,26 +259,21 @@ exports.uploadToGallery = async (req, res) => {
       uploadedGalleryPaths.push(path);
     }
 
-    // UPDATED: Removed is_approved, added status: 'pending'
     const insertData = uploadedGalleryPaths.map(path => ({
       resident_id: resident.id,
       image_path: path,
       caption: caption || 'Community Photo',
-      status: 'pending' // Use string status instead of boolean
+      status: 'pending' 
     }));
 
-    const { error } = await supabase
-      .from('resident_gallery') 
-      .insert(insertData);
+    const { error } = await supabase.from('resident_gallery').insert(insertData);
 
     if (error) throw error;
-    res.status(201).json({ success: true, message: "Photos uploaded and sent for Admin approval!" });
+    res.status(201).json({ success: true, message: "Photos sent for Admin approval!" });
   } catch (error) {
-    console.error("Gallery Upload Error:", error.message); // Log the actual error to your terminal
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // --- 8. VIEWING: APPROVED GALLERY PHOTOS ---
 exports.getApprovedGallery = async (req, res) => {
   try {

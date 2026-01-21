@@ -51,46 +51,75 @@ exports.login = async (req, res) => {
 
   try {
     let user = null;
-    let residentProfile = null;
+    let profileData = {
+      status: 'PENDING',
+      display_name: 'User',
+      profile_id: null
+    };
 
-    // --- STEP 1: FIND THE USER ---
+    // --- STEP 1: FIND THE USER & FETCH ROLE-SPECIFIC STATUS ---
     if (flat_no) {
-      // Logic for RESIDENTS: Find via residents table using flat_no
+      // 🏠 RESIDENT LOGIN LOGIC
       const { data: resident, error: resError } = await supabase
         .from('residents')
-        .select('status, user_id, users (*)')
+        .select('id, status, full_name, user_id, users (*)')
         .eq('flat_no', flat_no)
         .single();
 
       if (resError || !resident) {
-        return res.status(401).json({ message: "Invalid Flat Number" });
-      }
-
-      if (resident.status !== 'APPROVED') {
-        return res.status(403).json({ message: "Resident account pending admin approval." });
+        return res.status(401).json({ success: false, message: "Invalid Flat Number" });
       }
 
       user = resident.users;
-      residentProfile = resident;
+      profileData = {
+        status: resident.status, // Fetched from residents table
+        display_name: resident.full_name,
+        profile_id: resident.id
+      };
     } else if (email) {
-      // Logic for ADMIN/SUPPLIER/ACCOUNTANT: Find via email
-      const { data, error: emailError } = await supabase
+      // 📧 EMAIL LOGIN LOGIC (Admin, Supplier, Accountant)
+      const { data: userData, error: emailError } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
         .single();
 
-      if (emailError || !data) {
-        return res.status(401).json({ message: "Invalid Email" });
+      if (emailError || !userData) {
+        return res.status(401).json({ success: false, message: "Invalid Email" });
       }
-      user = data;
+      user = userData;
+
+      // If user is a SUPPLIER, we must fetch their status from the suppliers table
+      if (user.role === 'SUPPLIER') {
+        const { data: supplier } = await supabase
+          .from('suppliers')
+          .select('id, status, company_name')
+          .eq('user_id', user.id)
+          .single();
+
+        if (supplier) {
+          profileData = {
+            status: supplier.status, // Fetched from suppliers table
+            display_name: supplier.company_name,
+            profile_id: supplier.id
+          };
+        }
+      } else {
+        // Admins and other staff are usually auto-approved
+        profileData = {
+          status: 'APPROVED',
+          display_name: 'Administrator',
+          profile_id: null
+        };
+      }
     } else {
-      return res.status(400).json({ message: "Please provide Email or Flat Number" });
+      return res.status(400).json({ success: false, message: "Provide Email or Flat Number" });
     }
 
     // --- STEP 2: VERIFY PASSWORD ---
     const isMatch = await bcrypt.compare(password, user.password_hash);
     
+    // Log login attempt
     await supabase.from('login_attempts').insert([{
       email: email || `FLAT_${flat_no}`,
       ip_address,
@@ -99,28 +128,11 @@ exports.login = async (req, res) => {
     }]);
 
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid Password" });
+      return res.status(401).json({ success: false, message: "Invalid Password" });
     }
 
     if (!user.is_active) {
-      return res.status(403).json({ message: "User account is deactivated." });
-    }
-
-    // --- NEW: FETCH SUPPLIER DATA IF USER IS A SUPPLIER ---
-    let supplier_id = null;
-    let company_name = null;
-
-    if (user.role === 'SUPPLIER') {
-      const { data: supplier, error: supplierError } = await supabase
-        .from('suppliers')
-        .select('id, company_name')
-        .eq('user_id', user.id)
-        .single();
-
-      if (supplier) {
-        supplier_id = supplier.id;
-        company_name = supplier.company_name;
-      }
+      return res.status(403).json({ success: false, message: "Account is deactivated." });
     }
 
     // --- STEP 3: GENERATE TOKENS ---
@@ -147,20 +159,22 @@ exports.login = async (req, res) => {
 
     res.cookie('refreshToken', refreshToken, { 
       httpOnly: true, 
-      secure: true, 
+      secure: process.env.NODE_ENV === 'production', 
       sameSite: 'Strict' 
     });
     
-    // --- STEP 5: SUCCESS RESPONSE (With Supplier Info) ---
+    // --- STEP 5: SUCCESS RESPONSE ---
+    // Returning the 'status' from the profile table ensures the UI shows 'PENDING' or 'APPROVED'
     res.status(200).json({ 
       success: true, 
       accessToken, 
       user: { 
         id: user.id, 
-        supplier_id: supplier_id, // This is what your Bid table needs
-        email: user.email, 
         role: user.role,
-        company_name: company_name,
+        email: user.email,
+        status: profileData.status, // LIVE STATUS FROM TABLE
+        display_name: profileData.display_name,
+        profile_id: profileData.profile_id,
         flat_no: flat_no || null 
       } 
     });

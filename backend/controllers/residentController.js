@@ -3,64 +3,78 @@ const bcrypt = require('bcrypt');
 
 exports.registerResident = async (req, res) => {
   try {
-    const { 
-      email, 
-      password, 
-      full_name, 
-      block, 
-      flat_no, 
-      mobile_no, 
-      family_members 
-    } = req.body;
+    const { email, password, full_name, block, flat_no, mobile_no, family_members } = req.body;
 
-    // 1. Hash the password
+    console.log("📩 Registration attempt for:", email);
+
+    // 1. Check if user already exists
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', email);
+
+    if (checkError) {
+        console.error("❌ Database Check Error:", checkError);
+        throw checkError;
+    }
+
+    if (existingUser && existingUser.length > 0) {
+      console.log("⚠️ Email already exists:", email);
+      return res.status(409).json({ 
+        success: false, 
+        message: "An account with this email already exists." 
+      });
+    }
+
+    // 2. Hash the password
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-    // 2. Insert into 'users' table
-    // Note: is_active is false until Admin approves
+    // 3. Insert into 'users' table
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .insert([{ 
-        email, 
-        password_hash, 
-        role: 'RESIDENT', 
-        is_active: false, 
-        is_verified: false 
-      }])
+      .insert([{ email, password_hash, role: 'RESIDENT', is_active: false, is_verified: false }])
       .select();
 
-    if (userError) throw new Error(`User Account Error: ${userError.message}`);
+    if (userError) {
+        console.error("❌ User Table Insert Error:", userError);
+        return res.status(400).json({ success: false, message: userError.message });
+    }
+    
     const userId = userData[0].id;
 
-    // 3. Insert into 'residents' table
+    // 4. Insert into 'residents' table
     const { data: residentData, error: residentError } = await supabase
       .from('residents')
       .insert([{ 
-        user_id: userId,
+        user_id: userId, 
         full_name, 
         block, 
         flat_no, 
         mobile_no, 
-        family_members,
+        family_members: parseInt(family_members) || 1, 
         status: 'PENDING' 
       }])
       .select();
 
     if (residentError) {
-      // Rollback: delete user if resident profile fails
-      await supabase.from('users').delete().eq('id', userId);
-      throw new Error(`Resident Profile Error: ${residentError.message}`);
+      console.error("❌ Resident Table Insert Error:", residentError);
+      await supabase.from('users').delete().eq('id', userId); // Rollback
+      return res.status(400).json({ success: false, message: residentError.message });
     }
 
+    console.log("✅ Registration Successful for:", email);
     res.status(201).json({
       success: true,
-      message: "Registration successful! Please wait for Admin approval before logging in.",
-      resident_id: residentData[0].id
+      message: "Registration successful! Please wait for Admin approval."
     });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("🔥 Global Registration Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal Server Error: " + error.message 
+    });
   }
 };
 exports.approveResident = async (req, res) => {
