@@ -81,7 +81,7 @@ export default function ResidentBlogs() {
   // --- FULL BLOG DETAIL VIEW ---
   if (selectedBlog) {
     return (
-      <div className="p-4 md:p-5 min-h-screen animate-in fade-in duration-500">
+      <div className=" md:p-1 min-h-screen animate-in fade-in duration-500">
         <button 
           onClick={() => setSelectedBlog(null)}
           className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-medium mb-8 transition-all text-sm group"
@@ -282,3 +282,4 @@ export default function ResidentBlogs() {
   );
 
 }
+
