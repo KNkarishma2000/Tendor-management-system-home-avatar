@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
+const API_BASE_URL = 'http://lightgoldenrodyellow-buffalo-203370.hostingersite.com/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -208,4 +208,5 @@ export const publicTenderAPI = {
   getTenders: () => apiClient.get('/tenders'),
   getTenderDetails: (id) => apiClient.get(`/tenders/${id}`),
 };
+
 export default apiClient;
