@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
 import Header from '../pages/components/Header';
 import Footer from '../pages/components/Footer';
 import { communityAPI } from '../api/auth.service';
+import mainVideo from './assets/mainvideo.mp4';
 import { 
   Bell, 
   MapPin, 
@@ -84,48 +85,69 @@ const TenderHomePage = () => {
   return (
     <div>
       <Header />
-      <div className="min-h-screen font-sans text-neutral-900 overflow-x-hidden">
+    <div className="min-h-screen font-sans text-neutral-900 overflow-x-hidden">
+  {/* HERO SECTION */}
+  <div className="relative pt-32 pb-16 px-4 md:px-8 max-w-7xl mx-auto">
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:h-[600px]">
+      
+      {/* VIDEO BANNER CONTAINER */}
+      <div className="md:col-span-8 bg-neutral-900 rounded-[3rem] p-8 md:p-16 flex flex-col justify-between relative overflow-hidden group">
         
-        {/* HERO SECTION */}
-        <div className="relative pt-32 pb-16 px-4 md:px-8 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:h-[600px]">
-            <div className="md:col-span-8 bg-yellow-400 rounded-[3rem] p-8 md:p-16 flex flex-col justify-between relative overflow-hidden group">
-              <div className="relative z-10">
-                <div className="inline-flex items-center gap-2 bg-neutral-900 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
-                  <Sparkles className="w-3 h-3 text-yellow-400" /> Puppalaguda's Finest
-                </div>
-                <h1 className="text-5xl md:text-8xl font-black text-neutral-900 leading-[0.9] tracking-tighter mb-6">LIVE <br/> VIBRANT.</h1>
-                <p className="text-xl md:text-2xl font-bold text-neutral-800 max-w-md">83.5% Open Spaces. <br/> Endless Possibilities.</p>
-              </div>
-              <div className="relative z-10 flex flex-wrap gap-4 mt-8">
-                <button onClick={() => handleNavigation('/tenders')} className="bg-neutral-900 text-white px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform flex items-center gap-2">
-                  Explore Tenders <ArrowUpRight className="w-5 h-5" />
-                </button>
-                <button onClick={() => handleNavigation('/carnivals')} className="bg-white text-neutral-900 px-8 py-4 rounded-full font-bold text-lg hover:bg-neutral-100 transition-transform flex items-center gap-2">
-                  Book Stalls <Tent className="w-5 h-5" />
-                </button>
-              </div>
-              <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80" className="absolute right-0 bottom-0 w-1/2 h-full object-cover opacity-20 md:opacity-40 mix-blend-multiply grayscale group-hover:grayscale-0 transition-all duration-700" alt="Landscape" />
-            </div>
+        {/* The Video Element */}
+        <video 
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 transition-opacity duration-700"
+        >
+          <source src={mainVideo} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
 
-            <div className="md:col-span-4 flex flex-col gap-6">
-              <div className="flex-1 bg-neutral-900 rounded-[3rem] p-10 flex flex-col justify-center items-center text-center group cursor-pointer" onClick={() => handleNavigation('/notices')}>
-                 <Bell className="w-12 h-12 text-yellow-400 mb-4 group-hover:rotate-12 transition-transform" />
-                 <h3 className="text-4xl font-black text-white mb-2">{data.notices.length} New</h3>
-                 <p className="text-neutral-400 font-bold">Important Notices</p>
-              </div>
-              <div className="flex-1 bg-neutral-100 rounded-[3rem] p-8 flex flex-row items-center justify-between group hover:shadow-xl transition-all cursor-pointer" onClick={() => handleNavigation('/gallery')}>
-                 <div>
-                   <h3 className="text-3xl font-black text-neutral-900">Gallery</h3>
-                   <p className="text-neutral-500 font-bold text-sm mt-1">View Community</p>
-                 </div>
-                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
-                   <ImageIconLucide className="w-6 h-6 text-neutral-900" />
-                 </div>
-              </div>
-            </div>
+        {/* Overlay content - ensure z-index is above video */}
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 bg-yellow-400 text-neutral-900 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+            <Sparkles className="w-3 h-3" /> Puppalaguda's Finest
           </div>
+          <h1 className="text-5xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-6">
+            LIVE <br/> VIBRANT.
+          </h1>
+          <p className="text-xl md:text-2xl font-bold text-neutral-200 max-w-md">
+            83.5% Open Spaces. <br/> Endless Possibilities.
+          </p>
         </div>
+
+        <div className="relative z-10 flex flex-wrap gap-4 mt-8">
+          <button onClick={() => handleNavigation('/tenders')} className="bg-yellow-400 text-neutral-900 px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform flex items-center gap-2">
+            Explore Tenders <ArrowUpRight className="w-5 h-5" />
+          </button>
+          <button onClick={() => handleNavigation('/carnivals')} className="bg-white/10 backdrop-blur-md text-white border border-white/20 px-8 py-4 rounded-full font-bold text-lg hover:bg-white/20 transition-transform flex items-center gap-2">
+            Book Stalls <Tent className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* RIGHT SIDE CARDS */}
+      <div className="md:col-span-4 flex flex-col gap-6">
+        <div className="flex-1 bg-neutral-900 rounded-[3rem] p-10 flex flex-col justify-center items-center text-center group cursor-pointer" onClick={() => handleNavigation('/notices')}>
+           <Bell className="w-12 h-12 text-yellow-400 mb-4 group-hover:rotate-12 transition-transform" />
+           <h3 className="text-4xl font-black text-white mb-2">{data.notices.length} New</h3>
+           <p className="text-neutral-400 font-bold">Important Notices</p>
+        </div>
+        <div className="flex-1 bg-neutral-100 rounded-[3rem] p-8 flex flex-row items-center justify-between group hover:shadow-xl transition-all cursor-pointer" onClick={() => handleNavigation('/gallery')}>
+           <div>
+             <h3 className="text-3xl font-black text-neutral-900">Gallery</h3>
+             <p className="text-neutral-500 font-bold text-sm mt-1">View Community</p>
+           </div>
+           <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
+             <ImageIconLucide className="w-6 h-6 text-neutral-900" />
+           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* NOTICES */}
         <div className="px-4 max-w-7xl mx-auto mb-20">
@@ -276,5 +298,6 @@ const TenderHomePage = () => {
     </div>
   );
 };
+
 
 export default TenderHomePage;
