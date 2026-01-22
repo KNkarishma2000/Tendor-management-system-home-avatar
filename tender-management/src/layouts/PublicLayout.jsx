@@ -108,13 +108,13 @@ const TenderHomePage = () => {
         {/* Overlay content - ensure z-index is above video */}
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 bg-yellow-400 text-neutral-900 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
-            <Sparkles className="w-3 h-3" /> Puppalaguda's Finest
+            <Sparkles className="w-3 h-3" /> Hyderabad Finance
           </div>
           <h1 className="text-5xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-6">
             LIVE <br/> VIBRANT.
           </h1>
           <p className="text-xl md:text-2xl font-bold text-neutral-200 max-w-md">
-            83.5% Open Spaces. <br/> Endless Possibilities.
+            Joy of Inclusive Living <br/> Endless Possibilities.
           </p>
         </div>
 
@@ -301,5 +301,6 @@ const TenderHomePage = () => {
 
 
 export default TenderHomePage;
+
 
 
