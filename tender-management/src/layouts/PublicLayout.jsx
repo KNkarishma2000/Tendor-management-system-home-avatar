@@ -147,7 +147,7 @@ const TenderHomePage = () => {
       </div>
     </div>
   </div>
-</div>
+
 
         {/* NOTICES */}
         <div className="px-4 max-w-7xl mx-auto mb-20">
@@ -301,3 +301,4 @@ const TenderHomePage = () => {
 
 
 export default TenderHomePage;
+
