@@ -114,7 +114,7 @@ const TenderHomePage = () => {
             LIVE <br/> VIBRANT.
           </h1>
           <p className="text-xl md:text-2xl font-bold text-neutral-200 max-w-md">
-            Joy of Inclusive Living <br/> Endless Possibilities.
+            Joy of Inclusive Living
           </p>
         </div>
 
@@ -301,6 +301,7 @@ const TenderHomePage = () => {
 
 
 export default TenderHomePage;
+
 
 
 
