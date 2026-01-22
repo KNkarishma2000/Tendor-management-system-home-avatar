@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
 import Header from '../pages/components/Header';
 import Footer from '../pages/components/Footer';
 import { communityAPI } from '../api/auth.service';
-import mainVideo from './assets/mainvideo.mp4';
+import mainVideo from '../assets/mainvideo.mp4';
 import { 
   Bell, 
   MapPin, 
@@ -301,4 +301,5 @@ const TenderHomePage = () => {
 
 
 export default TenderHomePage;
+
 
