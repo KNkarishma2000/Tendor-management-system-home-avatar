@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PenTool, X, Upload, Send, User, Loader2, BookOpen, 
-  Calendar, ChevronRight, Image as ImageIcon, ArrowLeft, ShieldAlert 
+  Calendar, ChevronRight, Image as ImageIcon, ArrowLeft, ShieldAlert,
+  LayoutList, UserCircle // Added icons for the toggle
 } from 'lucide-react';
 import { communityAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
@@ -15,28 +16,46 @@ export default function ResidentBlogs() {
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [selectedFiles, setSelectedFiles] = useState([]);
 
-  // Get status from localStorage (Set this during your login/profile fetch)
+  // ✅ NEW: View Mode State ('all' = Community Feed, 'mine' = My Submissions)
+  const [viewMode, setViewMode] = useState('all');
+
+  // Get status from localStorage
   const userStatus = localStorage.getItem('userStatus'); 
   const isApproved = userStatus === 'APPROVED';
 
+  // ✅ Trigger fetch when viewMode changes
   useEffect(() => {
     fetchBlogs();
-  }, []);
+  }, [viewMode]);
 
   const fetchBlogs = async () => {
     try {
       setLoading(true);
-      const res = await communityAPI.getAllBlogs();
-      const actualBlogs = res.data?.data || res.data || [];
-      setBlogs(Array.isArray(actualBlogs) ? actualBlogs : []);
+      let res;
+
+      if (viewMode === 'mine') {
+        // 1. Fetch My Private Submissions (Pending/Approved/Rejected)
+        res = await communityAPI.getMySubmissions();
+        
+        // 2. Extract ONLY the 'blogs' array from the response object
+        // Expected structure: { success: true, data: { blogs: [], marketplace: [], gallery: [] } }
+        const myBlogs = res.data?.data?.blogs || []; 
+        setBlogs(myBlogs);
+      } else {
+        // 3. Fetch Public Community Feed (Only Approved)
+        res = await communityAPI.getBlogs();
+        const actualBlogs = res.data?.data || res.data || [];
+        setBlogs(Array.isArray(actualBlogs) ? actualBlogs : []);
+      }
+
     } catch (err) {
-      toast.error("Could not load community stories");
+      console.error(err);
+      toast.error("Could not load stories");
     } finally {
       setLoading(false);
     }
   };
 
-  // NEW: Handle Modal Open with Status Check
   const handleOpenModal = () => {
     if (!isApproved) {
       toast.error("Wait for admin approval! You can share stories once your account is verified.", {
@@ -52,7 +71,6 @@ export default function ResidentBlogs() {
     e.preventDefault();
     if (submitting) return;
 
-    // Security check
     if (!isApproved) {
       toast.error("You are not authorized to post yet.");
       return;
@@ -67,13 +85,16 @@ export default function ResidentBlogs() {
 
       await communityAPI.createBlog(data);
       
-      // Success Message
-      toast.success("Story submitted! It will be live once approved by admin.");
+      toast.success("Story submitted! It will be live once approved.");
       
       setShowModal(false);
       setFormData({ title: '', content: '' });
       setSelectedFiles([]);
-      fetchBlogs(); 
+      
+      // If user posts, switch view to 'mine' so they can see their pending post
+      if(viewMode !== 'mine') setViewMode('mine');
+      else fetchBlogs();
+
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to post blog");
     } finally {
@@ -83,6 +104,10 @@ export default function ResidentBlogs() {
 
   // Helper to render Status Badge UI
   const StatusBadge = ({ status }) => {
+    // If we are in "All" mode, usually everything is approved, so we might not need badges,
+    // but in "Mine" mode, status is crucial.
+    if (!status) return null;
+
     const configs = {
       pending: "bg-amber-50 text-amber-700 border-amber-100",
       approved: "bg-emerald-50 text-emerald-700 border-emerald-100",
@@ -119,7 +144,10 @@ export default function ResidentBlogs() {
                 <User size={20} />
               </div>
               <div className="text-sm">
-                <p className="font-bold text-slate-900">{selectedBlog.residents?.full_name || 'Resident'}</p>
+                <p className="font-bold text-slate-900">
+                    {/* If viewing my own blog, say "You", otherwise show name */}
+                    {viewMode === 'mine' ? 'You' : (selectedBlog.residents?.full_name || 'Resident')}
+                </p>
                 <p className="text-slate-500 flex items-center gap-2">
                   {new Date(selectedBlog.created_at).toLocaleDateString()}
                   <span>•</span>
@@ -180,7 +208,7 @@ export default function ResidentBlogs() {
   return (
     <div className="p-6 md:p-10 bg-slate-50 min-h-screen">
       
-      {/* --- NEW: STATUS BANNER --- */}
+      {/* --- STATUS BANNER --- */}
       {!isApproved && (
         <div className="mb-8 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 text-amber-800 animate-in slide-in-from-top duration-500">
           <ShieldAlert className="shrink-0 text-amber-600" size={22} />
@@ -191,30 +219,63 @@ export default function ResidentBlogs() {
         </div>
       )}
 
+      {/* --- HEADER & TOGGLE --- */}
       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-6 mb-12">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <BookOpen className="text-blue-600" size={28} /> Community Feed
+            <BookOpen className="text-blue-600" size={28} /> 
+            {viewMode === 'all' ? 'Community Feed' : 'My Stories'}
           </h1>
-          <p className="text-slate-500 font-medium mt-1">Updates and stories shared by your neighborhood.</p>
+          <p className="text-slate-500 font-medium mt-1">
+            {viewMode === 'all' 
+              ? 'Updates and stories shared by your neighborhood.' 
+              : 'Manage the stories you have submitted.'}
+          </p>
         </div>
         
-        {/* UPDATED BUTTON: Status aware styling and logic */}
-        <button 
-          onClick={handleOpenModal}
-          className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 text-sm shadow-lg
-            ${isApproved 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200' 
-              : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'}`}
-        >
-          <PenTool size={16} /> Write a Story
-        </button>
+        <div className="flex items-center gap-4">
+            
+            {/* ✅ VIEW MODE TOGGLE */}
+            <div className="bg-white p-1 rounded-xl border border-slate-200 flex shadow-sm">
+                <button
+                    onClick={() => setViewMode('all')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                        viewMode === 'all' 
+                        ? 'bg-slate-100 text-slate-900 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                >
+                    <LayoutList size={16} /> All
+                </button>
+                <button
+                    onClick={() => setViewMode('mine')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                        viewMode === 'mine' 
+                        ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                >
+                    <UserCircle size={16} /> My Stories
+                </button>
+            </div>
+
+            {/* WRITE BUTTON */}
+            <button 
+                onClick={handleOpenModal}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 text-sm shadow-lg
+                ${isApproved 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200' 
+                    : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'}`}
+            >
+                <PenTool size={16} /> Write a Story
+            </button>
+        </div>
       </div>
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-32">
           <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
-          <p className="text-slate-400 text-sm font-medium tracking-wide">Loading community stories...</p>
+          <p className="text-slate-400 text-sm font-medium tracking-wide">Loading stories...</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -231,6 +292,7 @@ export default function ResidentBlogs() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={32} /></div>
                   )}
+                  {/* Always show status badge if viewing 'Mine', or if status exists */}
                   <div className="absolute top-3 left-3">
                     <StatusBadge status={blog.status} />
                   </div>
@@ -248,7 +310,9 @@ export default function ResidentBlogs() {
                   <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-500 border border-slate-100"><User size={14} /></div>
-                      <span className="text-xs font-semibold text-slate-700">{blog.residents?.full_name || 'Resident'}</span>
+                      <span className="text-xs font-semibold text-slate-700">
+                          {viewMode === 'mine' ? 'You' : (blog.residents?.full_name || 'Resident')}
+                      </span>
                     </div>
                     <span className="text-blue-600 text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
                       Read more <ChevronRight size={14} />
@@ -260,7 +324,11 @@ export default function ResidentBlogs() {
           ) : (
             <div className="text-center py-24 bg-white rounded-3xl border border-slate-200">
                <BookOpen size={48} className="mx-auto text-slate-200 mb-4" />
-               <p className="text-slate-400 font-semibold">No stories have been shared yet.</p>
+               <p className="text-slate-400 font-semibold">
+                   {viewMode === 'mine' 
+                    ? "You haven't shared any stories yet." 
+                    : "No stories have been shared yet."}
+               </p>
             </div>
           )}
         </div>

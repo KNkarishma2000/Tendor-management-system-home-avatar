@@ -10,7 +10,7 @@ import { tenderAdminAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
 
 export default function CreateTender() {
-  const { id } = useParams(); // Detects /edit/:id
+  const { id } = useParams();
   const isEditMode = !!id;
   const navigate = useNavigate();
 
@@ -18,9 +18,8 @@ export default function CreateTender() {
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(isEditMode);
   const [attachedFiles, setAttachedFiles] = useState([]);
-  const [existingFiles, setExistingFiles] = useState([]); // To track files already in Supabase
+  const [existingFiles, setExistingFiles] = useState([]);
 
-  // Improved User ID Retrieval
   const getUserId = () => {
     try {
       const storedUser = localStorage.getItem('user');
@@ -53,15 +52,57 @@ export default function CreateTender() {
     penalty_clauses: '',
   });
 
-  // --- FETCH DATA FOR EDIT MODE ---
+  // --- STEP VALIDATION LOGIC ---
+  const validateStep = (step) => {
+    const fieldsByStep = {
+      1: ['title', 'description', 'scope_of_work'],
+      2: ['budget_estimate', 'emd_amount', 'price_weightage', 'technical_weightage'],
+      3: ['min_experience_years', 'min_turnover'],
+      4: ['clarification_deadline', 'submission_deadline', 'opening_date', 'delivery_timeline', 'bid_validity_days'],
+      5: [] // Documents are usually optional or handled separately
+    };
+
+    const requiredFields = fieldsByStep[step];
+    const missingFields = requiredFields.filter(field => {
+      const value = formData[field];
+      return value === undefined || value === null || value.toString().trim() === '';
+    });
+
+    if (missingFields.length > 0) {
+      // Create a readable name for the toast
+      const fieldNames = missingFields.map(f => f.replace(/_/g, ' ')).join(', ');
+      toast.error(`Please fill all required fields: ${fieldNames}`, {
+        icon: '🚫',
+        style: { borderRadius: '10px', background: '#333', color: '#fff' }
+      });
+      return false;
+    }
+
+    // Logical check for weightage in Step 2
+    if (step === 2) {
+      const total = Number(formData.price_weightage) + Number(formData.technical_weightage);
+      if (total !== 100) {
+        toast.error("Price and Technical weightage must add up to 100%");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleNext = (e) => {
+    e.preventDefault();
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
   useEffect(() => {
     if (isEditMode) {
       const fetchTenderData = async () => {
         try {
           const res = await tenderAdminAPI.getTenderById(id);
           const t = res.data.data;
-
-          // Map nested backend arrays to flat form state
           setFormData({
             title: t.title || '',
             description: t.description || '',
@@ -75,20 +116,14 @@ export default function CreateTender() {
             delivery_timeline: t.delivery_timeline || '',
             bid_validity_days: t.bid_validity_days || '',
             penalty_clauses: t.penalty_clauses || '',
-            // Extract from Timeline Array
             submission_deadline: t.tender_timeline?.[0]?.submission_deadline?.split('T')[0] || '',
             opening_date: t.tender_timeline?.[0]?.opening_date?.split('T')[0] || '',
             clarification_deadline: t.tender_timeline?.[0]?.clarification_deadline?.split('T')[0] || '',
-            // Extract from Eligibility Array
             min_experience_years: t.tender_eligibility_criteria?.[0]?.min_experience_years || '',
             min_turnover: t.tender_eligibility_criteria?.[0]?.min_turnover || '',
             required_certifications: t.tender_eligibility_criteria?.[0]?.required_certifications || '',
           });
-
-          // Store existing documents to display them
-          if (t.tender_documents) {
-            setExistingFiles(t.tender_documents);
-          }
+          if (t.tender_documents) setExistingFiles(t.tender_documents);
         } catch (error) {
           toast.error("Could not load tender details.");
           navigate('/admin/tenders');
@@ -104,29 +139,12 @@ export default function CreateTender() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const newFiles = files.map(file => ({
-      file,
-      type: 'TECHNICAL_SPEC',
-      name: file.name
-    }));
-    setAttachedFiles(prev => [...prev, ...newFiles]);
-  };
-
-  const removeNewFile = (index) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateFileType = (index, type) => {
-    const updated = [...attachedFiles];
-    updated[index].type = type;
-    setAttachedFiles(updated);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Final validation for Step 5 or whole form
+    if (!validateStep(currentStep)) return;
+
     if (!formData.created_by) {
         toast.error("Session expired. Please login again.");
         return;
@@ -137,17 +155,14 @@ export default function CreateTender() {
 
     try {
         const finalData = new FormData();
-
-        // 1. Append Fields
         Object.keys(formData).forEach(key => {
             finalData.append(key, formData[key]);
         });
-    finalData.append('status', 'PUBLISHED');
-        // 2. Append New Files
+        finalData.append('status', 'PUBLISHED');
+        
         attachedFiles.forEach((item) => {
             finalData.append('tender_documents', item.file);
             finalData.append('document_types', item.type); 
-
         });
 
         if (isEditMode) {
@@ -158,13 +173,25 @@ export default function CreateTender() {
           toast.success("Tender Published Successfully", { id: toastId });
         }
         
-        navigate('/admin/tenders');
+        setTimeout(() => navigate('/admin/tenders'), 1500);
     } catch (error) {
-        console.error("Submission Error:", error);
-        toast.error(error.response?.data?.message || "Something went wrong", { id: toastId });
+        toast.error(error.response?.data?.message || "Server connection failed", { id: toastId });
     } finally {
         setLoading(false);
     }
+  };
+
+  // ... (keeping your steps array and handleFile functions the same)
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    const newFiles = files.map(file => ({ file, type: 'TECHNICAL_SPEC', name: file.name }));
+    setAttachedFiles(prev => [...prev, ...newFiles]);
+  };
+  const removeNewFile = (index) => setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  const updateFileType = (index, type) => {
+    const updated = [...attachedFiles];
+    updated[index].type = type;
+    setAttachedFiles(updated);
   };
 
   const steps = [
@@ -186,6 +213,7 @@ export default function CreateTender() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto bg-[#FAFAFA] min-h-screen">
+      {/* Header and Stepper remains same as your original */}
       <div className="flex justify-between items-center mb-8">
         <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-2 text-neutral-400 hover:text-black font-black text-[10px] uppercase tracking-widest transition-all">
           <ArrowLeft size={14} /> Back
@@ -195,7 +223,6 @@ export default function CreateTender() {
         </div>
       </div>
 
-      {/* Stepper */}
       <div className="flex items-center justify-between mb-12 bg-white p-6 rounded-[2rem] border border-neutral-100 shadow-sm">
         {steps.map((step, idx) => (
           <React.Fragment key={step.id}>
@@ -213,58 +240,64 @@ export default function CreateTender() {
       <div className="bg-white rounded-[3rem] p-12 border border-neutral-100 shadow-xl">
         <form onSubmit={handleSubmit}>
           
+          {/* STEP 1 */}
           {currentStep === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              <SectionHeader title="Basic Project Details" subtitle="Core identity of this tender." />
-              <InputField label="Tender Title" placeholder="Annual Maintenance Contract" value={formData.title} onChange={(v) => handleInputChange('title', v)} required />
-              <TextareaField label="Brief Description" placeholder="Summarize objectives..." value={formData.description} onChange={(v) => handleInputChange('description', v)} required />
-              <TextareaField label="Scope of Work" placeholder="Detailed requirements..." value={formData.scope_of_work} onChange={(v) => handleInputChange('scope_of_work', v)} required />
+              <SectionHeader title="Basic Project Details" subtitle="All fields are required." />
+              <InputField label="Tender Title *" placeholder="Annual Maintenance Contract" value={formData.title} onChange={(v) => handleInputChange('title', v)} />
+              <TextareaField label="Brief Description *" placeholder="Summarize objectives..." value={formData.description} onChange={(v) => handleInputChange('description', v)}  />
+              <TextareaField label="Scope of Work *" placeholder="Detailed requirements..." value={formData.scope_of_work} onChange={(v) => handleInputChange('scope_of_work', v)}  />
             </div>
           )}
 
+          {/* STEP 2 */}
           {currentStep === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              <SectionHeader title="Financial Parameters" subtitle="Budget and evaluation weightage." />
+              <SectionHeader title="Financial Parameters" subtitle="Specify budget and weightage (Total 100%)." />
               <div className="grid grid-cols-2 gap-6">
-                <InputField label="Budget Estimate (₹)" type="number" value={formData.budget_estimate} onChange={(v) => handleInputChange('budget_estimate', v)} required />
-                <InputField label="EMD Amount (₹)" type="number" value={formData.emd_amount} onChange={(v) => handleInputChange('emd_amount', v)} required />
-                <InputField label="Price Weightage (%)" type="number" value={formData.price_weightage} onChange={(v) => handleInputChange('price_weightage', v)} required />
-                <InputField label="Technical Weightage (%)" type="number" value={formData.technical_weightage} onChange={(v) => handleInputChange('technical_weightage', v)} required />
+                <InputField label="Budget Estimate (₹) *" type="number" value={formData.budget_estimate} onChange={(v) => handleInputChange('budget_estimate', v)}   />
+                <InputField label="EMD Amount (₹) *" type="number" value={formData.emd_amount} onChange={(v) => handleInputChange('emd_amount', v)}   />
+                <InputField label="Price Weightage (%) *" type="number" value={formData.price_weightage} onChange={(v) => handleInputChange('price_weightage', v)}   />
+                <InputField label="Technical Weightage (%) *" type="number" value={formData.technical_weightage} onChange={(v) => handleInputChange('technical_weightage', v)}   />
               </div>
+              <TextareaField label="Penalty Clauses" placeholder="Optional penalty terms..." value={formData.penalty_clauses} onChange={(v) => handleInputChange('penalty_clauses', v)} />
             </div>
           )}
 
+          {/* STEP 3 */}
           {currentStep === 3 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
               <SectionHeader title="Vendor Eligibility" subtitle="Define minimum criteria." />
               <div className="grid grid-cols-2 gap-6">
-                <InputField label="Min. Experience (Years)" type="number" value={formData.min_experience_years} onChange={(v) => handleInputChange('min_experience_years', v)} required />
-                <InputField label="Min. Annual Turnover (₹)" type="number" value={formData.min_turnover} onChange={(v) => handleInputChange('min_turnover', v)} required />
+                <InputField label="Min. Experience (Years) *" type="number" value={formData.min_experience_years} onChange={(v) => handleInputChange('min_experience_years', v)}   />
+                <InputField label="Min. Annual Turnover (₹) *" type="number" value={formData.min_turnover} onChange={(v) => handleInputChange('min_turnover', v)}   />
               </div>
               <InputField label="Required Certifications" value={formData.required_certifications} onChange={(v) => handleInputChange('required_certifications', v)} />
             </div>
           )}
 
+          {/* STEP 4 */}
           {currentStep === 4 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
               <SectionHeader title="Timeline & Deadlines" subtitle="Finalize critical dates." />
               <div className="grid grid-cols-3 gap-4">
-                <InputField label="Clarification Due" type="date" value={formData.clarification_deadline} onChange={(v) => handleInputChange('clarification_deadline', v)} required />
-                <InputField label="Submission Due" type="date" value={formData.submission_deadline} onChange={(v) => handleInputChange('submission_deadline', v)} required />
-                <InputField label="Opening Date" type="date" value={formData.opening_date} onChange={(v) => handleInputChange('opening_date', v)} required />
+                <InputField label="Clarification Due *" type="date" value={formData.clarification_deadline} onChange={(v) => handleInputChange('clarification_deadline', v)}  />
+                <InputField label="Submission Due *" type="date" value={formData.submission_deadline} onChange={(v) => handleInputChange('submission_deadline', v)}  />
+                <InputField label="Opening Date *" type="date" value={formData.opening_date} onChange={(v) => handleInputChange('opening_date', v)}  />
               </div>
               <div className="grid grid-cols-2 gap-6">
-                <InputField label="Delivery Timeline" value={formData.delivery_timeline} onChange={(v) => handleInputChange('delivery_timeline', v)} required />
-                <InputField label="Bid Validity (Days)" type="number" value={formData.bid_validity_days} onChange={(v) => handleInputChange('bid_validity_days', v)} required />
+                <InputField label="Delivery Timeline (Days) *" type="number" value={formData.delivery_timeline} onChange={(v) => handleInputChange('delivery_timeline', v)} />
+                <InputField label="Bid Validity (Days) *" type="number" value={formData.bid_validity_days} onChange={(v) => handleInputChange('bid_validity_days', v)}  />
               </div>
             </div>
           )}
 
+          {/* STEP 5 */}
           {currentStep === 5 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-              <SectionHeader title="Tender Documents" subtitle="Upload technical specifications (PDF Only)." />
-              
-              {isEditMode && existingFiles.length > 0 && (
+               <SectionHeader title="Tender Documents" subtitle="Upload technical specifications (PDF Only)." />
+               {/* ... (Your existing Document Upload UI) */}
+               {isEditMode && existingFiles.length > 0 && (
                 <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl mb-4">
                   <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <AlertCircle size={14}/> Currently Uploaded Files:
@@ -328,10 +361,7 @@ export default function CreateTender() {
             {currentStep < 5 ? (
               <button 
                 type="button" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  setCurrentStep(prev => prev + 1);
-                }}
+                onClick={handleNext}
                 className="flex items-center gap-3 bg-neutral-900 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-neutral-200 hover:-translate-y-1 transition-transform"
               >
                 Continue <ChevronRight size={16} />
@@ -353,7 +383,7 @@ export default function CreateTender() {
   );
 }
 
-// Sub-components
+// ... (SectionHeader, InputField, TextareaField components remain the same)
 const SectionHeader = ({ title, subtitle }) => (
   <div className="mb-8">
     <h2 className="text-2xl font-black text-neutral-900 tracking-tight">{title}</h2>

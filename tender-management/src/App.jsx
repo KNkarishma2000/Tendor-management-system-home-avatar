@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
 import DashboardLayout from './layouts/DashboardLayout';
-
+import { Toaster } from 'react-hot-toast';
 
 import Login from './pages/auth/Login';
 import LoginSupplier from './pages/auth/LoginSupplier';
@@ -32,15 +32,31 @@ import AllCarnivals from './layouts/AllCarnivals';
 import AllBlogs from './layouts/Allblogs';
 import BlogDetails from './layouts/BlogDetails';
 import AllGallery from './layouts/AllGallery';
+import ResidentNotices from './pages/community/NoticeBoard';
+import ForgotPassword from './pages/auth/forgot-password';
+import SupplierCarnivalList from './pages/tenders/CarnivalPage';
+import CarnivalBidSubmissionPage from './pages/tenders/CarnivalBidSubmissionPage';
+import CarnivalAdminDetails from './pages/admin/CarnivalDetailsPage';
+import AdminSupportInbox from './pages/admin/AdminSupportInbox';
 
 
 
 function App() {
   return (
+    <> <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+        }}
+      />
     <Routes>
+      
       {/* Public Routes */}
       <Route path="/" element={<PublicLayout />} />
       <Route path="/login" element={<Login />} />
+      
+      
+ <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/tenders" element={<PublicTenderList />} />
       <Route path="/supplier-login" element={<LoginSupplier />} />
        <Route path="/gallery" element={<AllGallery />} />
@@ -54,7 +70,8 @@ function App() {
       <Route path="/admin" element={<DashboardLayout />}>
         {/* Redirect /admin to /admin/dashboard */}
         <Route index element={<Navigate to="dashboard" replace />} />
-        
+         <Route path="carnivals/:id" element={<CarnivalAdminDetails />} />
+         <Route path="support" element={<AdminSupportInbox />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="carnivals" element={<Carnivals />} />
         <Route path="residents" element={<ResidentManagement />} /> 
@@ -75,6 +92,7 @@ function App() {
                     <Route path="blogs" element={<ResidentBlogs />} />
                            <Route path="gallery" element={<ResidentGallery />} />
         <Route path="resident" element={<ResidentDashboard />} />
+         <Route path="notices" element={<ResidentNotices />} />
         {/* Add these as you build them:
         <Route path="marketplace" element={<Marketplace />} />
         <Route path="events" element={<CommunityEvents />} /> 
@@ -85,7 +103,9 @@ function App() {
     <Route index element={<Navigate to="portal" replace />} />
     <Route path="portal" element={<SupplierDashboard />} />
     <Route path="tender" element={<AvailableTenders />} />
-      <Route path="bids" element={<BidSubmissionPage />} />
+    <Route path="carnival" element={<SupplierCarnivalList />} />
+     <Route path="bids" element={<BidSubmissionPage />} />
+      <Route path="carnival/:id" element={<CarnivalBidSubmissionPage />} />
     {/* This is the key connection point */}
     <Route path="tender/:id" element={<SupplierTenderPortal />} />
 </Route>
@@ -93,6 +113,7 @@ function App() {
       {/* Fallback */}
       <Route path="*" element={<div className="p-10 font-black text-center">404 - Page Not Found</div>} />
     </Routes>
+    </>
   );
 }
 

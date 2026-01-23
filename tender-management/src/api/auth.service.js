@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://lightgoldenrodyellow-buffalo-203370.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -21,11 +21,33 @@ apiClient.interceptors.request.use((config) => {
 });
 
 // --- API CATEGORIES ---
+// --- CARNIVAL MANAGEMENT API ---
+export const carnivalAPI = {
+  // Public/Supplier: Get list of upcoming carnivals
+  getActiveCarnivals: () => apiClient.get('/carnival/active'),
+getCarnivalBidsAdmin: (id) => apiClient.get(`/carnival/admin/details/${id}`),
+  
+  // Admin: Get specific supplier full info for the popup
+  getSupplierBrief: (id) => apiClient.get(`/admin/suppliers/${id}`),
+  // Supplier: Submit a bid for a carnival stall
+  // formData should contain: carnival_id, supplier_id, bid_amount, proposal_description, technical_doc, financial_doc
+  submitCarnivalBid: (formData) => apiClient.post('/carnival/submit-bid', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 
+  // Supplier: Check if they already bid and get status
+  getMyBidStatus: (carnivalId) => apiClient.get(`/carnival/my-status/${carnivalId}`),
+
+  // Admin: Update bid status (Approve/Reject)
+  updateBidStatus: (bidId, status) => apiClient.put('/carnival/update-status', { bid_id: bidId, status }),
+};
 export const authAPI = {
   // Unified Login (Email or Flat No)
   login: (credentials) => apiClient.post('/auth/login', credentials),
-  
+  forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
+
+  // ✅ NEW: Reset Password (Verify OTP & Update)
+  resetPassword: (data) => apiClient.post('/auth/reset-password', data),
   // Resident Specific Login
  
   
@@ -56,7 +78,7 @@ export const adminAPI = {
     
   // Award a tender to a specific bidder
   awardTender: (tenderId, winningBidId) => 
-    apiClient.post('/award/award-tender', { tender_id: tenderId, winning_bid_id: winningBidId }),
+    apiClient.post('/awards/award-winner', { tender_id: tenderId, winning_bid_id: winningBidId }),
 
   // Finalize award with file uploads (LOI & Contract)
   // Note: For files, we use FormData
@@ -65,7 +87,24 @@ export const adminAPI = {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
 };
+export const supportAPI = {
+  // For Residents/Suppliers to send messages
+  sendQuery: (message) => apiClient.post('/chatsupport/send', { message }),
 
+  // For Admin to see a list of users who messaged (Optional, depends on controller logic)
+  getAdminInbox: () => apiClient.get('/chatsupport/admin/inbox'),
+
+  // For both to get chat history
+  getChatHistory: (userId = null) => {
+    // If userId is passed, it uses the Admin-specific history route
+    const url = userId ? `/chatsupport/admin/history/${userId}` : '/chatsupport/history';
+    return apiClient.get(url);
+  },
+
+  // For Admin to reply
+  adminReply: (targetUserId, message) => 
+    apiClient.post('/chatsupport/admin/reply', { target_user_id: targetUserId, message }),
+};
 export const tenderAPI = {
   // Get all qualified bids for a specific tender
   getQualifiedBids: (tenderId) => apiClient.get(`/award/qualified-bids/${tenderId}`),
@@ -77,6 +116,9 @@ export const communityAPI = {
   createMarketplaceItem: (formData) => apiClient.post('/community/marketplace', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  deleteCarnival: (id) => apiClient.delete(`/community/carnivals/${id}`),
+  createNotice: (data) => apiClient.post('/community/notices', data),
+  getMySubmissions: () => apiClient.get('/community/my-submissions'),
   getAllBlogs: () => apiClient.get('/community/blogs/all'),
 getNotices: () => apiClient.get('/community/notices/public'),
 getBlogDetails: (id) => apiClient.get(`/community/blogs/public/${id}`),
@@ -85,6 +127,7 @@ getBlogDetails: (id) => apiClient.get(`/community/blogs/public/${id}`),
   createBlog: (formData) => apiClient.post('/community/blogs', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  createCarnival: (formData) => apiClient.post('/community/carnivals', formData),
   // Keep the old one if other components use it, or just use the one above
   getBlogs: () => apiClient.get('/community/blogs/public'),
 
@@ -94,7 +137,7 @@ getBlogDetails: (id) => apiClient.get(`/community/blogs/public/${id}`),
 
   getMarketplace: () => apiClient.get('/community/marketplace/feed'),
   getGallery: () => apiClient.get('/community/gallery/feed'),
-
+deleteNotice: (id) => apiClient.delete(`/community/notices/${id}`),
   uploadToGallery: (formData) => apiClient.post('/community/gallery', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
@@ -178,7 +221,6 @@ export const tenderAdminAPI = {
   }),
 
   // ADD THIS LINE - This was the missing piece causing the redirect
-  getTenderById: (id) => apiClient.get(`/tenders/${id}`), 
 
   uploadTenderDocuments: (tenderId, formData) => 
     apiClient.post(`/tenders/upload/${tenderId}`, formData, {
@@ -190,16 +232,21 @@ export const tenderAdminAPI = {
   }),
 
   deleteTender: (id) => apiClient.delete(`/tenders/${id}`),
-  getTenderFileUrl: (path) => apiClient.get(`/tenders/download`, { params: { path } }),
+ getTenderFileUrl: (path, fileName) => 
+    apiClient.get('/tenders/download', { 
+      params: { path, fileName } 
+    }),
+
+  getTenderById: (id) => apiClient.get(`/tenders/${id}`),
   getAllTenders: () => apiClient.get('/tenders'),
 };
 // --- VENDOR PERFORMANCE ---
 
 export const vendorAPI = {
-  // Admin: Rate a vendor after project completion
+  // Post to /vendors/rate (Matches your backend router)
   rateVendor: (ratingData) => apiClient.post('/vendors/rate', ratingData),
   
-  // Potential future helper: Get vendor history
+  // Get history to show stars in the UI
   getVendorPerformance: (supplierId) => apiClient.get(`/vendors/performance/${supplierId}`),
 };
 // Add this or update tenderAdminAPI

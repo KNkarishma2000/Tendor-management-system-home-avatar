@@ -29,7 +29,6 @@ export default function RegisterSupplier() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error message when user starts typing
     if (message.type === 'error') setMessage({ type: '', text: '' });
   };
 
@@ -46,11 +45,18 @@ export default function RegisterSupplier() {
     }));
   };
 
-  // --- VALIDATION LOGIC ---
+  // --- UPDATED MANDATORY VALIDATION LOGIC ---
   const validateStep = () => {
     if (step === 1) {
-      if (!formData.email || !formData.password || !formData.company_name || !formData.contact_phone || !formData.registered_address) {
-        setMessage({ type: 'error', text: 'Please fill in all company details to proceed.' });
+      // Strictly checking all fields for Step 1
+      if (
+        !formData.email.trim() || 
+        !formData.password.trim() || 
+        !formData.company_name.trim() || 
+        !formData.contact_phone.trim() || 
+        !formData.registered_address.trim()
+      ) {
+        setMessage({ type: 'error', text: 'All Company Details are mandatory. Please fill every field to continue.' });
         return false;
       }
     }
@@ -80,7 +86,6 @@ export default function RegisterSupplier() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Final Step Validation
     if (formData.categories.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one service category.' });
       return;
@@ -94,7 +99,7 @@ export default function RegisterSupplier() {
     const data = new FormData();
     Object.keys(formData).forEach(key => {
         if(key === 'categories') {
-            formData.categories.forEach(cat => data.append('categories', cat));
+          data.append('categories', JSON.stringify(formData.categories));
         } else {
             data.append(key, formData[key]);
         }
@@ -122,7 +127,6 @@ export default function RegisterSupplier() {
       <main className="flex-grow pt-32 pb-20 px-4">
         <div className="max-w-4xl mx-auto">
           
-          {/* Progress Bar */}
           <div className="flex justify-between mb-12 relative px-10">
             <div className="absolute top-1/2 left-0 w-full h-1 bg-neutral-200 -translate-y-1/2 z-0"></div>
             {[1, 2, 3].map((num) => (
@@ -142,19 +146,18 @@ export default function RegisterSupplier() {
             )}
 
             <form onSubmit={handleSubmit}>
-              {/* STEP 1: ACCOUNT & COMPANY */}
               {step === 1 && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <h2 className="text-4xl font-black text-neutral-900 mb-2 tracking-tighter">Company Details</h2>
                   <p className="text-neutral-500 font-bold mb-8">Basic identification and login credentials.</p>
                   
                   <div className="grid md:grid-cols-2 gap-6">
-                    <InputField icon={Mail} label="Official Email" name="email" type="email" placeholder="e.g. info@company.com" value={formData.email} onChange={handleInputChange} />
-                    <InputField icon={Lock} label="Password" name="password" type="password" placeholder="••••••••" value={formData.password} onChange={handleInputChange} />
-                    <InputField icon={Building2} label="Company Name" name="company_name" placeholder="Legal Business Name" value={formData.company_name} onChange={handleInputChange} />
-                    <InputField icon={Phone} label="Contact Phone" name="contact_phone" placeholder="10-digit mobile number" value={formData.contact_phone} onChange={handleInputChange} />
+                    <InputField icon={Mail} label="Official Email *" name="email" type="email" placeholder="e.g. info@company.com" value={formData.email} onChange={handleInputChange} required />
+                    <InputField icon={Lock} label="Password *" name="password" type="password" placeholder="••••••••" value={formData.password} onChange={handleInputChange} required />
+                    <InputField icon={Building2} label="Company Name *" name="company_name" placeholder="Legal Business Name" value={formData.company_name} onChange={handleInputChange} required />
+                    <InputField icon={Phone} label="Contact Phone *" name="contact_phone" placeholder="10-digit mobile number" value={formData.contact_phone} onChange={handleInputChange} required />
                     <div className="md:col-span-2">
-                        <InputField icon={FileText} label="Registered Address" name="registered_address" placeholder="Full address including City, State, and Pincode" value={formData.registered_address} onChange={handleInputChange} />
+                        <InputField icon={FileText} label="Registered Address *" name="registered_address" placeholder="Full address including City, State, and Pincode" value={formData.registered_address} onChange={handleInputChange} required />
                     </div>
                   </div>
                   <button type="button" onClick={nextStep} className="mt-10 w-full bg-neutral-900 text-white py-5 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all shadow-xl">
@@ -163,7 +166,6 @@ export default function RegisterSupplier() {
                 </div>
               )}
 
-              {/* STEP 2: TAX & BANKING */}
               {step === 2 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                   <h2 className="text-4xl font-black text-neutral-900 mb-2 tracking-tighter">Tax & Banking</h2>
@@ -190,7 +192,6 @@ export default function RegisterSupplier() {
                 </div>
               )}
 
-              {/* STEP 3: DOCUMENTS & CATEGORY */}
               {step === 3 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                   <h2 className="text-4xl font-black text-neutral-900 mb-2 tracking-tighter">Final Submission</h2>
@@ -227,7 +228,6 @@ export default function RegisterSupplier() {
                 </div>
               )}
 
-              {/* STEP 4: SUCCESS */}
               {step === 4 && (
                 <div className="text-center py-10 animate-in zoom-in duration-500">
                     <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">

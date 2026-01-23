@@ -103,14 +103,24 @@ export default function PublicTenderList() {
               </div>
 
               {/* Deadline */}
-              <div className="col-span-3 mt-4 md:mt-0 flex items-center gap-2">
-                <Calendar size={14} className="text-neutral-400" />
-                <span className="text-sm font-bold text-neutral-600">
-                  {new Date(tender.tender_timeline?.[0]?.submission_deadline).toLocaleDateString('en-IN', {
-                     day: '2-digit', month: 'short', year: 'numeric'
-                  })}
-                </span>
-              </div>
+             <div className="col-span-3 mt-4 md:mt-0 flex items-center gap-2">
+  <Calendar size={14} className="text-neutral-400" />
+  <span className="text-sm font-bold text-neutral-600">
+    {(() => {
+      // Logic to handle both Array and Object formats
+      const timelineData = Array.isArray(tender.tender_timeline) 
+        ? tender.tender_timeline[0] 
+        : tender.tender_timeline;
+      
+      const dateStr = timelineData?.submission_deadline;
+      const d = new Date(dateStr);
+      
+      return d instanceof Date && !isNaN(d) 
+        ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        : "TBA";
+    })()}
+  </span>
+</div>
 
               {/* Budget */}
               <div className="col-span-2 mt-2 md:mt-0">

@@ -63,7 +63,7 @@ export default function TenderDetails({ isSupplierView = false }) {
   );
 
   return (
-    <div className={`${!isSupplierView ? 'bg-[#FAFAFA] min-h-screen p-6 md:p-10' : ''}`}>
+    <div className={`${!isSupplierView ? 'bg-[#FAFAFA] min-h-screen p-6 md:p-1' : ''}`}>
       
       {/* HEADER & TAB NAVIGATION - Only show if NOT supplier view */}
       {!isSupplierView && (

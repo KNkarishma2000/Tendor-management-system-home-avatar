@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, X, Upload, ShoppingBag, Clock, CheckCircle2, 
-  AlertCircle, User, Phone, ImageOff, ShieldAlert 
+  AlertCircle, User, Phone, ImageOff, ShieldAlert,
+  LayoutList, UserCircle // Added icons for toggle
 } from 'lucide-react';
 import { communityAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
@@ -16,19 +17,38 @@ export default function ResidentMarketplace() {
   });
   const [selectedFile, setSelectedFile] = useState(null);
 
+  // ✅ NEW: View Mode State
+  const [viewMode, setViewMode] = useState('all');
+
   // --- Logic for Admin Approval ---
   const userStatus = localStorage.getItem('userStatus'); 
   const isApproved = userStatus === 'APPROVED';
 
-  useEffect(() => { fetchItems(); }, []);
+  // ✅ Trigger fetch when viewMode changes
+  useEffect(() => { 
+    fetchItems(); 
+  }, [viewMode]);
 
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await communityAPI.getMarketplace();
-      const actualData = res.data?.data || res.data || [];
-      setItems(Array.isArray(actualData) ? actualData : []);
+      setItems([]); // Clear current items
+
+      if (viewMode === 'mine') {
+        // 1. Fetch My Submissions
+        const res = await communityAPI.getMySubmissions();
+        // 2. Extract ONLY 'marketplace' array
+        // Structure: { data: { blogs: [], marketplace: [], gallery: [] } }
+        const myItems = res.data?.data?.marketplace || [];
+        setItems(myItems);
+      } else {
+        // 3. Fetch All (Public Marketplace as requested)
+        const res = await communityAPI.getPublicMarketplace();
+        const actualData = res.data?.data || res.data || [];
+        setItems(Array.isArray(actualData) ? actualData : []);
+      }
     } catch (err) {
+      console.error(err);
       toast.error("Failed to load marketplace listings");
     } finally {
       setLoading(false);
@@ -71,7 +91,11 @@ export default function ResidentMarketplace() {
       setShowModal(false);
       setFormData({ item_name: '', price: '', category: '', description: '', contact_no: '' });
       setSelectedFile(null);
-      fetchItems();
+      
+      // Switch to 'mine' to see pending item
+      if(viewMode !== 'mine') setViewMode('mine');
+      else fetchItems();
+
     } catch (err) {
       toast.error(err.response?.data?.message || "Upload failed.", { id: loadingToast });
     } finally {
@@ -80,6 +104,9 @@ export default function ResidentMarketplace() {
   };
 
   const StatusBadge = ({ status }) => {
+    // Only show badge if needed (e.g. in 'Mine' view or if status exists)
+    if (!status) return null;
+    
     const configs = {
       approved: { color: "bg-emerald-500", icon: <CheckCircle2 size={10} />, label: "Live" },
       pending: { color: "bg-amber-500", icon: <Clock size={10} />, label: "Pending" },
@@ -87,7 +114,7 @@ export default function ResidentMarketplace() {
     };
     const config = configs[status] || configs.pending;
     return (
-      <span className={`${config.color} text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 uppercase tracking-wider`}>
+      <span className={`${config.color} text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 uppercase tracking-wider shadow-sm`}>
         {config.icon} {config.label}
       </span>
     );
@@ -109,23 +136,53 @@ export default function ResidentMarketplace() {
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-3xl p-8 mb-10 text-white flex justify-between items-center shadow-xl">
-        <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight flex items-center gap-3">
-            <ShoppingBag /> Marketplace
+      {/* --- HEADER SECTION --- */}
+      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-3xl p-8 mb-10 text-white flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl">
+        <div className="text-center md:text-left">
+          <h1 className="text-3xl font-black uppercase tracking-tight flex items-center justify-center md:justify-start gap-3">
+            <ShoppingBag /> 
+            {viewMode === 'all' ? 'Marketplace' : 'My Listings'}
           </h1>
-          <p className="text-blue-100">Buy and sell within the community</p>
+          <p className="text-blue-100 mt-1">
+            {viewMode === 'all' ? 'Buy and sell within the community' : 'Manage your items for sale'}
+          </p>
         </div>
         
-        <button 
-          onClick={handleOpenModal} 
-          className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg
-            ${isApproved 
-              ? 'bg-white text-indigo-600 hover:bg-blue-50' 
-              : 'bg-indigo-400/50 text-indigo-100 cursor-not-allowed shadow-none'}`}
-        >
-          <Plus size={20} /> SELL SOMETHING
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+            {/* ✅ TOGGLE BUTTONS */}
+            <div className="bg-white/10 p-1 rounded-xl flex backdrop-blur-sm border border-white/20">
+                <button
+                    onClick={() => setViewMode('all')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-lg transition-all ${
+                        viewMode === 'all' 
+                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        : 'text-indigo-100 hover:bg-white/10'
+                    }`}
+                >
+                    <LayoutList size={16} /> All
+                </button>
+                <button
+                    onClick={() => setViewMode('mine')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-lg transition-all ${
+                        viewMode === 'mine' 
+                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        : 'text-indigo-100 hover:bg-white/10'
+                    }`}
+                >
+                    <UserCircle size={16} /> My Items
+                </button>
+            </div>
+
+            <button 
+                onClick={handleOpenModal} 
+                className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg whitespace-nowrap
+                ${isApproved 
+                    ? 'bg-white text-indigo-600 hover:bg-blue-50' 
+                    : 'bg-indigo-400/50 text-indigo-100 cursor-not-allowed shadow-none'}`}
+            >
+                <Plus size={20} /> SELL ITEM
+            </button>
+        </div>
       </div>
 
       {loading ? (
@@ -138,6 +195,8 @@ export default function ResidentMarketplace() {
           {items.length > 0 ? (
             items.map((item) => (
               <div key={item.id} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all relative group">
+                
+                {/* Status Badge (Always visible in Mine, or if status exists) */}
                 <div className="absolute top-3 left-3 z-10">
                   <StatusBadge status={item.status} />
                 </div>
@@ -167,7 +226,9 @@ export default function ResidentMarketplace() {
                   
                   <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                     <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
-                      <User size={12} className="text-slate-300" /> {item.residents?.full_name || 'Resident'}
+                      <User size={12} className="text-slate-300" /> 
+                      {/* Show 'You' if viewing my listings */}
+                      {viewMode === 'mine' ? 'You' : (item.residents?.full_name || 'Resident')}
                     </div>
                     <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-500">
                       <Phone size={12} /> {item.contact_no}
@@ -179,7 +240,9 @@ export default function ResidentMarketplace() {
           ) : (
             <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
               <ShoppingBag className="mx-auto text-slate-200 mb-4" size={48} />
-              <p className="text-slate-400 font-medium">No items listed in the marketplace yet.</p>
+              <p className="text-slate-400 font-medium">
+                  {viewMode === 'mine' ? "You haven't listed anything for sale yet." : "No items listed in the marketplace yet."}
+              </p>
             </div>
           )}
         </div>

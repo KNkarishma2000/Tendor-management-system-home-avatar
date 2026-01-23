@@ -38,14 +38,9 @@ const handleLogin = async (e) => {
       showSuccess(isAdminMode ? "Access Granted!" : "Welcome Home!");
       
       localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('userRole', data.user.role);
-      // ADD THIS LINE: Save the status from the database (e.g., 'APPROVED' or 'PENDING')
-      // localStorage.setItem('userStatus', data.user.status || 'PENDING'); 
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('userStatus', data.user.status || 'PENDING'); 
-      
-      // 2. Save the full user object (which now contains the status from the DB)
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('userEmail', data.user.email); // Store the actual login email
+localStorage.setItem('userRole', data.user.role);
+localStorage.setItem('userStatus', data.user.status || 'PENDING');
       setTimeout(() => {
           if (data.user.role === 'ADMIN') window.location.href = '/admin/dashboard';
           else if (data.user.role === 'RESIDENT') window.location.href = '/dashboard/resident';

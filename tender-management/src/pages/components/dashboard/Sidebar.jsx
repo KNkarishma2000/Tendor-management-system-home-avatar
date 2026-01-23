@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Tent, Bell, FileText, Settings, LogOut, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, Tent,MessageSquare, Bell, FileText, Settings, LogOut, Briefcase } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authAPI } from '../../../api/auth.service'; // Ensure this path matches your file structure
 
@@ -11,12 +11,14 @@ const MENU_ITEMS = {
     { label: 'Notices', icon: Bell, path: '/admin/notices' },
     { label: 'Tenders', icon: FileText, path: '/admin/tenders' },
     { label: 'Suppliers', icon: FileText, path: '/admin/suppliers' },
+    { label: 'Support Queries', icon: MessageSquare, path: '/admin/support' },
   ],
   SUPPLIER: [
     // { label: 'Bidding Board', icon: Briefcase, path: '/supplier/bids' },
     // { label: 'My Contracts', icon: FileText, path: '/dashboard/contracts' },
     // { label: 'Performance', icon: LayoutDashboard, path: '/dashboard/performance' },
       { label: 'Tenders', icon: LayoutDashboard, path: '/supplier/tender' },
+       { label: 'Carnivals', icon: LayoutDashboard, path: '/supplier/carnival' },
   ],
   RESIDENT: [
     { label: 'Home', icon: LayoutDashboard, path: '/dashboard/resident' },

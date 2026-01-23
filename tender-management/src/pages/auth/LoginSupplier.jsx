@@ -45,7 +45,10 @@ const handleLogin = async (e) => {
     // Your backend sends 'profile_id', so we use that for Bidding tables
     localStorage.setItem('userId', user.profile_id); 
     
-    localStorage.setItem('userName', user.display_name || 'Supplier');
+    // ... inside handleLogin after extracting accessToken, user
+localStorage.setItem('userEmail', user.email); // Store the actual login email
+localStorage.setItem('userRole', user.role);
+localStorage.setItem('userStatus', user.status || 'PENDING');
     
     // FIX: Use user.status (this was causing the crash)
     localStorage.setItem('userStatus', user.status || 'PENDING'); 
