@@ -2,7 +2,8 @@
 const supabase = require('../config/supabase');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-
+const axios = require('axios');
+const nodemailer = require('nodemailer');
 // 1. REGISTER USER
 exports.register = async (req, res) => {
   try {
@@ -338,3 +339,148 @@ exports.residentLogin = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// ==========================================
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    // 1. Check if user exists
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
+      // Security: Don't reveal if email exists or not, but for now we return success
+      return res.status(200).json({ success: true, message: "If account exists, OTP sent." });
+    }
+
+    // 2. Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // Expires in 10 minutes
+
+    // 3. Save OTP to Database
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ 
+        reset_otp: otp, 
+        reset_otp_expires: expiresAt.toISOString() 
+      })
+      .eq('id', user.id);
+
+    if (updateError) throw updateError;
+
+    // 4. Send Email via OneSignal
+   await sendGmailOTP(email, otp);
+
+    res.status(200).json({ success: true, message: `OTP sent to ${email}` });
+
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// 6. RESET PASSWORD (Verify OTP & Update)
+// ==========================================
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    // 1. Validate Input
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: "Email, OTP, and New Password are required" });
+    }
+
+    // 2. Fetch User and OTP details
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, reset_otp, reset_otp_expires')
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
+      return res.status(400).json({ message: "Invalid Request" });
+    }
+
+    // 3. Verify OTP
+    const currentTime = new Date();
+    const expiryTime = new Date(user.reset_otp_expires);
+
+    if (user.reset_otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (currentTime > expiryTime) {
+      return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+    }
+
+    // 4. Hash New Password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    // 5. Update Password & Clear OTP
+    const { error: saveError } = await supabase
+      .from('users')
+      .update({ 
+        password_hash: passwordHash,
+        reset_otp: null,
+        reset_otp_expires: null
+      })
+      .eq('id', user.id);
+
+    if (saveError) throw saveError;
+
+    res.status(200).json({ success: true, message: "Password reset successfully. Please login." });
+
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// HELPER: Send Email via OneSignal API
+// ==========================================
+async function sendGmailOTP(email, otp) {
+  const transporter = nodemailer.createTransport({
+     host: 'smtp.gmail.com',
+     port: 587,
+     secure: false, // Use TLS
+     auth: {
+       type: 'OAuth2',
+       user: process.env.EMAIL_USER,
+       clientId: process.env.GMAIL_CLIENT_ID,
+       clientSecret: process.env.GMAIL_CLIENT_SECRET,
+       refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+     },
+   });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Reset Your Password - OTP",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+        <h2 style="color: #4CAF50;">Password Reset Request</h2>
+        <p>You requested to reset your password.</p>
+        <p style="font-size: 1.2em;">Your OTP is: <strong>${otp}</strong></p>
+        <p>This code expires in 10 minutes.</p>
+        <hr />
+        <p style="font-size: 0.8em; color: #888;">If you did not request this, please ignore this email.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("✅ Gmail Sent successfully");
+  } catch (error) {
+    console.error("❌ Gmail API Error:", error);
+    throw new Error("Failed to send OTP email via Gmail");
+  }
+}

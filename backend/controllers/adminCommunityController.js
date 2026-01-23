@@ -3,10 +3,25 @@ const supabase = require('../config/supabase');
 // Create a Carnival Event
 exports.createCarnival = async (req, res) => {
   try {
-    const { event_title, event_date, total_stalls, base_stall_price, extra_stall_price } = req.body;
+    const { 
+      event_title, 
+      event_date, 
+      bid_deadline, // New field for bid submission deadline
+      total_stalls, 
+      base_stall_price, 
+      extra_stall_price 
+    } = req.body;
+
     const { data, error } = await supabase
       .from('carnivals')
-      .insert([{ event_title, event_date, total_stalls, base_stall_price, extra_stall_price }])
+      .insert([{ 
+        event_title, 
+        event_date, 
+        bid_deadline, // Mapping to the new 'bid_deadline' column
+        total_stalls, 
+        base_stall_price, 
+        extra_stall_price 
+      }])
       .select();
 
     if (error) throw error;
@@ -37,7 +52,7 @@ exports.getAllCarnivals = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('carnivals')
-      .select('*')
+      .select('*') // This will now fetch 'bid_deadline' along with other columns
       .order('event_date', { ascending: true });
 
     if (error) throw error;
@@ -77,18 +92,33 @@ exports.deleteNotice = async (req, res) => {
   }
 };
 
+
 // --- DELETE Carnival ---
 exports.deleteCarnival = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: "Carnival ID is required" });
+    }
+
+    // Attempt to delete from the 'carnivals' table
     const { data, error } = await supabase
       .from('carnivals')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
-    res.status(200).json({ success: true, message: "Carnival deleted successfully" });
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Carnival deleted successfully" 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Delete Carnival Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };

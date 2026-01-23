@@ -36,12 +36,14 @@ const adminRoutes = require('./routes/admin');
 const bidRoutes = require('./routes/bids');
 const evaluationRoutes = require('./routes/evaluations');
 const awardRoutes = require('./routes/awards');
+const supportRoutes = require('./routes/support.routes');
 const vendorRoutes = require('./routes/vendorRoutes');
 const milestoneRoutes = require('./routes/milestoneRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const supplierRoutes = require('./routes/suppliers');
 const residentsRoutes = require('./routes/residents');
 const communityRoutes=require('./routes/communityRoutes');
+const carnivalRoutes = require('./routes/carnivalRoutes'); // ✅ 'routes' should be plural
 // const supplierRoutes = require('./routes/suppliers'); // Add later
 
 const app = express();
@@ -83,6 +85,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tenders', tenderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/bids', bidRoutes);
+
+app.use('/api/chatsupport', supportRoutes);
 app.use('/api/awards', awardRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/milestones', milestoneRoutes);
@@ -90,6 +94,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/residents', residentsRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/carnival', carnivalRoutes);
 // app.use('/api/suppliers', supplierRoutes);
 
 // =======================

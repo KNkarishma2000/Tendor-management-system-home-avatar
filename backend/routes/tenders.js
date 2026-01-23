@@ -16,6 +16,9 @@ const {
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 // UPDATED: Now accepts up to 5 files with the field name 'tender_documents'
+router.get('/download', protect, getTenderFileUrl);
+router.get('/', getAllTenders); 
+router.get('/:id', getTenderById);
 router.post(
     '/', 
     protect, 
@@ -24,9 +27,8 @@ router.post(
     createTender
 ); 
 
-router.get('/', getAllTenders); 
-router.get('/:id', getTenderById);
-router.get('/download', protect, getTenderFileUrl);
+
+
 router.get('/:id', protect, getTenderById);
 
 // NEW: Update route (Edit)

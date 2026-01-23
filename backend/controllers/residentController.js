@@ -1,6 +1,6 @@
 const supabase = require('../config/supabase');
 const bcrypt = require('bcrypt');
-
+const nodemailer = require('nodemailer');
 exports.registerResident = async (req, res) => {
   try {
     const { email, password, full_name, block, flat_no, mobile_no, family_members } = req.body;
@@ -82,28 +82,44 @@ exports.approveResident = async (req, res) => {
     const { resident_id } = req.params;
     const { action } = req.body; // 'APPROVE' or 'REJECT'
 
-    // 1. Get the resident's user_id
+    // 1. Get the resident's user_id and email
+    // Note: Ensure the relationship 'users' is correctly set in Supabase for this join to work
     const { data: resident, error: fetchError } = await supabase
       .from('residents')
-      .select('user_id')
+      .select('full_name, user_id, users (email)')
       .eq('id', resident_id)
       .single();
 
     if (fetchError || !resident) throw new Error("Resident not found");
 
+    const userEmail = resident.users.email;
+    const fullName = resident.full_name;
+
     if (action === 'APPROVE') {
-      // Update Resident Status
+      // Update DB
       await supabase.from('residents').update({ status: 'APPROVED' }).eq('id', resident_id);
-      // Activate User Account
       await supabase.from('users').update({ is_active: true }).eq('id', resident.user_id);
       
-      return res.status(200).json({ success: true, message: "Resident approved and account activated." });
+      // ✅ TRIGGER EMAIL (Awaited)
+      await sendStatusEmail(
+        userEmail, 
+        "Welcome to the Community! Account Approved", 
+        fullName, // Pass the name as the 'title'
+        "APPROVED", 
+        "Account"
+      );
+
+      return res.status(200).json({ success: true, message: "Resident approved and email sent." });
     } else {
       await supabase.from('residents').update({ status: 'REJECTED' }).eq('id', resident_id);
-      return res.status(200).json({ success: true, message: "Resident registration rejected." });
+      
+      // ✅ TRIGGER EMAIL (Awaited)
+      await sendStatusEmail(userEmail, "Account Registration Update", fullName, "REJECTED", "Account");
+      
+      return res.status(200).json({ success: true, message: "Resident rejected and email sent." });
     }
-
   } catch (error) {
+    console.error("Approval Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -198,3 +214,74 @@ exports.deleteResident = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// Replace your old sendGmailOTP with this flexible version
+async function sendStatusEmail(email, subject, title, status, type) {
+  // 1. Create transporter with OAuth2 (Same as your OTP function)
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Use TLS
+    auth: {
+      type: 'OAuth2',
+      user: process.env.EMAIL_USER,
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+    },
+  });
+
+  const isApproved = status === 'APPROVED';
+  const color = isApproved ? '#10b981' : '#ef4444';
+
+  // 2. Build dynamic content
+  let extraContent = '';
+  if (isApproved && type === "Account") {
+    extraContent = `
+      <div style="background-color: #fefce8; padding: 15px; border-radius: 10px; margin-top: 15px; border: 1px solid #fef08a;">
+        <p style="margin: 0; font-weight: bold; color: #854d0e;">🚀 What you can do now:</p>
+        <ul style="color: #854d0e; margin-top: 5px;">
+          <li><strong>Marketplace:</strong> You can now list and sell items.</li>
+          <li><strong>Blogs:</strong> Share your stories and news with the community.</li>
+          <li><strong>Gallery:</strong> Upload photos to the community gallery.</li>
+        </ul>
+      </div>
+    `;
+  } else if (isApproved) {
+    extraContent = `<p>It is now live on the community feed for everyone to see!</p>`;
+  } else {
+    extraContent = `<p>Unfortunately, your submission was not approved at this time. Please contact the administrator for more details.</p>`;
+  }
+
+  const mailOptions = {
+    from: `"Community Portal" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: subject,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 20px; color: #333;">
+        <h2 style="color: ${color}; margin-top: 0;">${isApproved ? '🎉 Congratulations!' : '❌ Update on Submission'}</h2>
+        <p style="font-size: 16px;">Hello ${title},</p>
+        <p style="font-size: 16px; line-height: 1.5;">
+          Your <strong>${type}</strong> request has been <strong>${status}</strong> by the Admin.
+        </p>
+        
+        ${extraContent}
+
+        <div style="margin-top: 30px; text-align: center;">
+          <a href="http://localhost:3000/login" style="background-color: #fbbf24; color: #000; padding: 12px 25px; text-decoration: none; border-radius: 10px; font-weight: bold;">Login to Dashboard</a>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+        <p style="font-size: 0.8em; color: #888; text-align: center;">This is an automated notification from your Resident Management System.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Status Email (${status}) sent to: ${email}`);
+  } catch (error) {
+    console.error("❌ Email Delivery Error:", error);
+    // We don't necessarily want to crash the whole request if email fails, 
+    // but we should log it.
+  }
+}

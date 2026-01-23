@@ -1,5 +1,5 @@
 const supabase = require('../config/supabase');
-
+const nodemailer = require('nodemailer');
 // --- HELPER: Upload to Storage ---
 const uploadBuffer = async (bucket, folder, file) => {
   const filePath = `${folder}/${Date.now()}_${file.originalname}`;
@@ -112,9 +112,10 @@ exports.listMarketplaceItem = async (req, res) => {
 };
 // --- 3. ADMIN: MODERATE CONTENT ---
 // --- 3. ADMIN: MODERATE CONTENT (Updated for String Status) ---
+// --- 3. ADMIN: MODERATE CONTENT (Updated to send Emails) ---
 exports.moderateContent = async (req, res) => {
   try {
-    const { id, type, status } = req.body; // status coming from frontend as true/false
+    const { id, type, status } = req.body; 
     
     const tableMap = {
       'BLOG': 'resident_blogs',
@@ -125,22 +126,64 @@ exports.moderateContent = async (req, res) => {
     const table = tableMap[type];
     if (!table) throw new Error("Invalid content type");
 
-    // Convert boolean from frontend to string for DB
-    // true -> 'approved', false -> 'rejected'
     const statusString = status === true ? 'approved' : 'rejected';
 
-    const { error } = await supabase
+    // 1. Update the status first
+    const { error: updateError } = await supabase
       .from(table)
       .update({ status: statusString }) 
       .eq('id', id);
 
-    if (error) throw error;
+    if (updateError) throw updateError;
+
+    // 2. Select columns based on the Type to avoid "Column does not exist" errors
+    let columnsToSelect = "resident_id";
+    if (type === 'BLOG') columnsToSelect += ", title";
+    if (type === 'MARKETPLACE') columnsToSelect += ", item_name";
+    if (type === 'GALLERY') columnsToSelect += ", caption";
+
+    // 3. Fetch Data + Join Residents + Join Users to get Email
+    const { data: content, error: fetchError } = await supabase
+      .from(table)
+      .select(`
+        ${columnsToSelect},
+        residents (
+          full_name,
+          users (email)
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+        console.error("❌ Fetch Error:", fetchError.message);
+        return res.status(200).json({ success: true, message: "Status updated, but email fetch failed." });
+    }
+
+    // 4. Extract details safely
+    const userEmail = content?.residents?.users?.email;
+    const residentName = content?.residents?.full_name || "Resident";
+    const postTitle = content.title || content.item_name || content.caption || "Community Post";
+
+    if (userEmail) {
+      console.log(`📧 Sending ${statusString} email to: ${userEmail}`);
+      
+      await sendStatusEmail(
+        userEmail,
+        `Update on your ${type} post`,
+        residentName,           // Title parameter in your function is used for "Hello [Name]"
+        statusString.toUpperCase(), 
+        type
+      );
+    }
 
     res.status(200).json({ 
       success: true, 
-      message: `${type} has been ${statusString}` 
+      message: `${type} has been ${statusString} and user notified.` 
     });
+
   } catch (error) {
+    console.error("🔥 Moderation Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -445,3 +488,114 @@ exports.getBlogDetails = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// --- ADD THIS TO: community.controller.js ---
+
+// --- 9. RESIDENT: GET MY SUBMISSIONS (Blogs, Marketplace, Gallery) ---
+exports.getMySubmissions = async (req, res) => {
+  try {
+    // 1. Get Resident ID from the logged-in user
+    const { data: resident, error: resError } = await supabase
+      .from('residents')
+      .select('id')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (resError || !resident) {
+      return res.status(404).json({ success: false, message: "Resident profile not found" });
+    }
+
+    // 2. Fetch specific data for this resident
+    const { data: blogs } = await supabase
+      .from('resident_blogs')
+      .select('*')
+      .eq('resident_id', resident.id)
+      .order('created_at', { ascending: false });
+
+    const { data: items } = await supabase
+      .from('marketplace_items')
+      .select('*')
+      .eq('resident_id', resident.id)
+      .order('created_at', { ascending: false });
+
+    const { data: gallery } = await supabase
+      .from('resident_gallery')
+      .select('*')
+      .eq('resident_id', resident.id)
+      .order('created_at', { ascending: false });
+
+    // 3. Helper to Sign URLs (For Blogs - Private Bucket)
+    const signImages = async (list, bucket) => {
+      for (let item of list) {
+        if (item.images && item.images.length > 0) {
+          const signedImages = [];
+          for (let path of item.images) {
+            const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+            if (data) signedImages.push(data.signedUrl);
+          }
+          item.images = signedImages;
+        }
+      }
+      return list;
+    };
+
+    // 4. Helper for Public URLs (For Marketplace/Gallery - Public Buckets)
+    const formatPublicData = (list, bucket) => list.map(item => ({
+      ...item,
+      image_path: item.image_path ? getPublicUrl(bucket, item.image_path) : null
+    }));
+
+    // Process the images
+    const processedBlogs = await signImages(blogs || [], 'resident-blogs');
+    const processedItems = formatPublicData(items || [], 'marketplace-items');
+    const processedGallery = formatPublicData(gallery || [], 'resident-gallery');
+
+    res.status(200).json({ 
+      success: true, 
+      data: {
+        blogs: processedBlogs,
+        marketplace: processedItems,
+        gallery: processedGallery
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+async function sendStatusEmail(email, subject, title, status, type) {
+  const transporter = nodemailer.createTransport({
+     host: 'smtp.gmail.com',
+     port: 587,
+     secure: false, // Use TLS
+     auth: {
+       type: 'OAuth2',
+       user: process.env.EMAIL_USER,
+       clientId: process.env.GMAIL_CLIENT_ID,
+       clientSecret: process.env.GMAIL_CLIENT_SECRET,
+       refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+     },
+   });
+
+  const isApproved = status === 'APPROVED';
+  const color = isApproved ? '#10b981' : '#ef4444';
+
+  const mailOptions = {
+    from: `"Community Portal" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: subject,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
+        <h2 style="color: ${color};">${isApproved ? '🎉 Content Approved!' : '❌ Content Update'}</h2>
+        <p>Hello,</p>
+        <p>Your <strong>${type}</strong> submission: "<em>${title}</em>" has been <strong>${status}</strong> by the admin.</p>
+        ${isApproved 
+          ? '<p>It is now live on the community feed for everyone to see!</p>' 
+          : '<p>Unfortunately, your submission did not meet our community guidelines and was rejected.</p>'}
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="font-size: 0.8em; color: #888;">This is an automated notification from your Resident Portal.</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}

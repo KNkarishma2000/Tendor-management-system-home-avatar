@@ -10,6 +10,7 @@ const upload = multer({ storage: storage });
 
 // --- 1. PUBLIC ROUTES (Main Website - No Token Required) ---
 // These only show "is_approved: true" content
+router.get('/my-submissions', protect, resCtrl.getMySubmissions);
 router.get('/blogs/public', resCtrl.getApprovedBlogs);
 router.get('/marketplace/public', resCtrl.getPublicMarketplace);
 router.get('/gallery/public', resCtrl.getPublicGallery);

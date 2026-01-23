@@ -50,10 +50,18 @@ exports.submitBid = async (req, res) => {
     const finPath = `tender_${tender_id}/sup_${supplier_id}_fin.pdf`;
     const emdPath = `tender_${tender_id}/sup_${supplier_id}_emd.pdf`;
 
-    await supabase.storage.from('technical-bids').upload(techPath, files.technical_bid[0].buffer, { upsert: true });
-    await supabase.storage.from('financial-bids').upload(finPath, files.financial_bid[0].buffer, { upsert: true });
-    await supabase.storage.from('supplier-docs').upload(emdPath, files.emd_proof[0].buffer, { upsert: true });
-
+ await supabase.storage.from('technical-bids').upload(techPath, files.technical_bid[0].buffer, { 
+        upsert: true, 
+        contentType: 'application/pdf' 
+    });
+    await supabase.storage.from('financial-bids').upload(finPath, files.financial_bid[0].buffer, { 
+        upsert: true, 
+        contentType: 'application/pdf' 
+    });
+    await supabase.storage.from('supplier-docs').upload(emdPath, files.emd_proof[0].buffer, { 
+        upsert: true, 
+        contentType: 'application/pdf' 
+    });
     // 4. CREATE MAIN BID RECORD
     const { data: bidData, error: bidError } = await supabase
       .from('bids')
@@ -100,19 +108,41 @@ exports.submitBid = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// backend/controllers/bidController.js
+
+// backend/controllers/bidController.js
+
+// backend/controllers/bidController.js
+
 exports.getMyBidStatus = async (req, res) => {
   try {
     const { tender_id } = req.params;
     const user_id = req.user.id;
 
-    const { data: supplier } = await supabase
+    // 1. Fetch the deadline info first (so we always have it)
+    const { data: timeline } = await supabase
+      .from('tender_timeline')
+      .select('submission_deadline')
+      .eq('tender_id', tender_id)
+      .single();
+
+    // 2. Find the Supplier ID
+    const { data: supplier, error: supErr } = await supabase
       .from('suppliers')
-      .select('id')
+      .select('id, company_name')
       .eq('user_id', user_id)
       .single();
 
-    if (!supplier) return res.status(200).json({ success: true, bid: null });
+    // If no supplier or no bid exists yet, we still return the deadline
+    if (supErr || !supplier) {
+      return res.status(200).json({ 
+        success: true, 
+        bid: null, 
+        deadline: timeline?.submission_deadline 
+      });
+    }
 
+    // 3. Fetch Bid details
     const { data: bid, error } = await supabase
       .from('bids')
       .select(`
@@ -126,32 +156,31 @@ exports.getMyBidStatus = async (req, res) => {
       .maybeSingle();
 
     if (error) throw error;
-    if (!bid) return res.status(200).json({ success: true, bid: null });
 
-    const getSignedUrl = async (bucket, path) => {
-      if (!path) return null;
-      // Using the exact bucket names visible in your Supabase screenshot
-      const { data, error: storageError } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
-      if (storageError) {
-          console.error(`Error generating URL for ${bucket}:`, storageError.message);
-          return null;
-      }
-      return data?.signedUrl;
-    };
+    // Prepare signed URLs if bid exists (same logic as before...)
+    let fileUrls = null;
+    if (bid) {
+      const companyName = supplier.company_name.replace(/\s+/g, '_');
+      const getSignedUrl = async (bucket, path, suffix) => {
+        if (!path) return null;
+        const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600, {
+          download: `${companyName}_${suffix}.pdf`
+        });
+        return data?.signedUrl;
+      };
 
-    const fileUrls = {
-      technical: await getSignedUrl('technical-bids', bid.bid_technical_documents?.[0]?.file_path),
-      // Fix: Ensure bucket name is 'financial-bids'
-      financial: await getSignedUrl('financial-bids', bid.bid_financials?.[0]?.encrypted_file_path),
-      // Fix: Your screenshot shows 'supplier-docs', but your code uses 'bid-documents'. 
-      // Ensure this matches where you actually uploaded.
-      emd: await getSignedUrl('supplier-docs', bid.bid_common_documents?.[0]?.emd_proof_file)
-    };
+      fileUrls = {
+        technical: await getSignedUrl('technical-bids', bid.bid_technical_documents?.[0]?.file_path, 'Technical_Proposal'),
+        financial: await getSignedUrl('financial-bids', bid.bid_financials?.[0]?.encrypted_file_path, 'Financial_Quote'),
+        emd: await getSignedUrl('supplier-docs', bid.bid_common_documents?.[0]?.emd_proof_file, 'EMD_Proof')
+      };
+    }
 
     res.status(200).json({ 
       success: true, 
       bid: bid,
-      downloadUrls: fileUrls 
+      downloadUrls: fileUrls,
+      deadline: timeline?.submission_deadline // <--- ADDED THIS
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

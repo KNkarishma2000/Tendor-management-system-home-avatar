@@ -4,22 +4,16 @@ const supabase = require('../config/supabase');
 exports.createTender = async (req, res) => {
   try {
     const {
-      // Main Tender Fields
       title, description, scope_of_work, quantity,
       delivery_timeline, budget_estimate, price_weightage,
       technical_weightage, emd_amount, bid_validity_days,
       penalty_clauses, created_by,
-      
-      // Timeline Table Fields
       submission_deadline, opening_date, clarification_deadline,
-
-      // Eligibility Table Fields
       min_experience_years, min_turnover, required_certifications 
     } = req.body;
 
-    const files = req.files; // Array of files from multer
+    const files = req.files;
 
-    // 1. Insert into 'tenders'
     const { data: tenderData, error: tenderError } = await supabase
       .from('tenders')
       .insert([{
@@ -35,76 +29,38 @@ exports.createTender = async (req, res) => {
     if (tenderError) throw tenderError;
     const tenderId = tenderData[0].id;
 
-    // 2. Insert into 'tender_timeline'
-    const { error: timelineError } = await supabase
-      .from('tender_timeline')
-      .insert([{
-          tender_id: tenderId,
-          submission_deadline,
-          opening_date,
-          clarification_deadline
-      }]);
+    await supabase.from('tender_timeline').insert([{
+      tender_id: tenderId, submission_deadline, opening_date, clarification_deadline
+    }]);
 
-    if (timelineError) throw timelineError;
+    await supabase.from('tender_eligibility_criteria').insert([{
+      tender_id: tenderId, min_experience_years, min_turnover, required_certifications
+    }]);
 
-    // 3. Insert into 'tender_eligibility_criteria'
-    const { error: eligibilityError } = await supabase
-      .from('tender_eligibility_criteria')
-      .insert([{
-          tender_id: tenderId,
-          min_experience_years,
-          min_turnover,
-          required_certifications
-      }]);
-
-    if (eligibilityError) throw eligibilityError;
-
-    // 4. NEW: Handle Simultaneous File Uploads
+    // --- UPDATED FILE UPLOAD LOGIC ---
     if (files && files.length > 0) {
       for (const file of files) {
-        // Create a unique path
         const filePath = `tenders/${tenderId}/${Date.now()}_${file.originalname}`;
         
-        // A. Upload to Supabase Storage
         const { error: storageError } = await supabase.storage
           .from('tender-assets')
           .upload(filePath, file.buffer, {
-            contentType: file.mimetype,
+            contentType: file.mimetype, // CRITICAL: Sets the file type correctly
             upsert: true
           });
 
         if (storageError) throw storageError;
 
-        // B. Record file in 'tender_documents' table to link it to the tender
-        const { error: docTableError } = await supabase
-          .from('tender_documents')
-          .insert([{
-            tender_id: tenderId,
-            file_path: filePath,
-           document_type: req.body.tender_doc_type || 'NIT' // Default type or extract from req.body if provided
-          }]);
-          
-        if (docTableError) throw docTableError;
+        await supabase.from('tender_documents').insert([{
+          tender_id: tenderId,
+          file_path: filePath,
+          document_type: req.body.tender_doc_type || 'NIT'
+        }]);
       }
     }
 
-    // 5. Audit Log
-    await supabase.from('audit_logs').insert([{
-      user_id: created_by,
-      action: 'TENDER_CREATED_WITH_DOCUMENTS',
-      entity_type: 'TENDER',
-      entity_id: tenderId,
-      ip_address: req.ip
-    }]);
-
-    res.status(201).json({
-      success: true,
-      message: 'Tender created with all records and documents successfully!',
-      tender_id: tenderId
-    });
-
+    res.status(201).json({ success: true, tender_id: tenderId });
   } catch (error) {
-    console.error("Creation Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -116,21 +72,26 @@ exports.uploadTenderDocuments = async (req, res) => {
     const { document_type } = req.body; 
     const file = req.file;
 
-    if (!file) return res.status(400).json({ message: "No file received by server" });
+    if (!file) return res.status(400).json({ message: "No file received" });
 
     const filePath = `tenders/${tender_id}/${document_type}_${Date.now()}.pdf`;
     
-    // Upload to Supabase Storage
-    const { data: storageData, error: storageError } = await supabase.storage
+    const { error: storageError } = await supabase.storage
       .from('tender-assets')
       .upload(filePath, file.buffer, {
-        contentType: 'application/pdf', // Tell Supabase this is a PDF
+        contentType: file.mimetype || 'application/pdf', 
         upsert: true
       });
 
     if (storageError) throw storageError;
 
-    // ... rest of your code to save to DB
+    await supabase.from('tender_documents').insert([{
+      tender_id,
+      file_path: filePath,
+      document_type
+    }]);
+
+    res.status(200).json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -172,24 +133,34 @@ exports.getAllTenders = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// backend/controllers/tenderController.js
+
+// backend/controllers/tenderController.js
+
 exports.getTenderFileUrl = async (req, res) => {
   try {
-    const { path } = req.query; 
-
+    const { path, fileName } = req.query; 
     if (!path) return res.status(400).json({ message: "Path is required" });
 
-    // This cleaning logic ensures the path works with the signed URL
+    // 1. Clean the path (remove bucket name if it was accidentally prepended)
     const cleanPath = path.replace('tender-assets/', '').replace(/^\/+/, '');
 
-    const { data, error } = await supabase.storage
+    // 2. Get the Public URL
+    const { data } = supabase.storage
       .from('tender-assets')
-      .createSignedUrl(cleanPath, 60, {
-        download: true // CORRECT: Forces direct download
-      });
+      .getPublicUrl(cleanPath);
 
-    if (error) throw error;
+    if (!data.publicUrl) {
+        return res.status(404).json({ success: false, message: "File not found" });
+    }
 
-    res.status(200).json({ success: true, url: data.signedUrl });
+    // 3. For public buckets, we return the public link. 
+    // If you still want "forced download" behavior with a custom name, 
+    // keep createSignedUrl, otherwise publicUrl is sufficient.
+    res.status(200).json({ 
+      success: true, 
+      url: data.publicUrl 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
