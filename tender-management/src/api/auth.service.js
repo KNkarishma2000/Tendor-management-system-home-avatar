@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
+const API_BASE_URL = 'http://palegreen-rhinoceros-358698.hostingersite.com/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -257,4 +257,5 @@ export const publicTenderAPI = {
 };
 
 export default apiClient;
+
 
