@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
+const API_BASE_URL = 'https://palegreen-rhinoceros-358698.hostingersite.com/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -307,6 +307,7 @@ export const financeAPI = {
     apiClient.get('/drive/zoho-elemensor-history'), // Matches new rout
 };
 export default apiClient;
+
 
 
 
