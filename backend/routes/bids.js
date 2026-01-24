@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { submitBid,getMyBidStatus } = require('../controllers/bidController');
+const { submitBid,getMyBidStatus,getAllMyBids } = require('../controllers/bidController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 // Configure multer to store files in memory for processing
@@ -34,4 +34,6 @@ router.post(
   submitBid
 );
 router.get('/my-status/:tender_id', protect, getMyBidStatus);
+// Correct: use the destructured function name directly
+router.get('/my-bids', protect, getAllMyBids);
 module.exports = router;

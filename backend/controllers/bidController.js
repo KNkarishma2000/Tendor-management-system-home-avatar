@@ -186,3 +186,45 @@ exports.getMyBidStatus = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.getAllMyBids = async (req, res) => {
+  try {
+    const user_id = req.user.id;
+
+    const { data: supplier, error: supErr } = await supabase
+      .from('suppliers')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (supErr || !supplier) return res.status(200).json({ success: true, data: [] });
+
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        id,
+        status,
+        tenders:tender_id ( 
+          title,
+          budget_estimate
+        ),
+        bid_financials (
+          total_amount
+        )
+      `) // Removed created_at to stop the 500 error
+      .eq('supplier_id', supplier.id);
+
+    if (error) throw error;
+
+    const formattedBids = data.map(b => ({
+      id: b.id,
+      title: b.tenders?.title || "Unknown Tender",
+      status: b.status,
+      price: b.bid_financials?.[0]?.total_amount || 0,
+    }));
+
+    res.status(200).json({ success: true, data: formattedBids });
+  } catch (error) {
+    console.error("GET_MY_BIDS_ERROR:", error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

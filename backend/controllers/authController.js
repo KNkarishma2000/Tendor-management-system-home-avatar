@@ -189,70 +189,110 @@ exports.login = async (req, res) => {
 
 // 3. UNIFIED SUPPLIER REGISTRATION (User + Profile)
 exports.registerSupplier = async (req, res) => {
+  console.log("--- STARTING REGISTRATION ---");
+  console.log("Body:", req.body);
+  console.log("Files received:", req.files ? req.files.length : "NONE");
+
   try {
     const { 
-        email, 
-        password, 
-        company_name, 
-        registered_address, 
-        pan, 
-        gstin, 
-        contact_person_name, 
-        contact_phone 
+      email, password, company_name, registered_address, 
+      pan, gstin, cin, contact_person_name, contact_phone, 
+      bank_account_no, ifsc_code, bank_name, categories 
     } = req.body;
 
-    // 1. Hash Password
+    // 1. Create User
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // 2. Insert into 'users' table
+    const password_hash = await bcrypt.hash(password, salt);
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .insert([{ 
-          email, 
-          password_hash: passwordHash, 
-          role: 'SUPPLIER',
-          is_active: true,
-          is_verified: false 
-      }])
+      .insert([{ email, password_hash, role: 'SUPPLIER', is_active: true, is_verified: false }])
       .select();
 
-    if (userError) {
-        if (userError.code === '23505') return res.status(400).json({ message: "Email already exists" });
-        throw userError;
-    }
+    if (userError) throw new Error(`User Table: ${userError.message}`);
+    const userId = userData[0].id;
+    console.log("✅ User created:", userId);
 
-    const newUserId = userData[0].id;
-
-    // 3. Insert into 'suppliers' table
+    // 2. Create Supplier
     const { data: supplierData, error: supplierError } = await supabase
       .from('suppliers')
       .insert([{ 
-          user_id: newUserId,
-          company_name,
-          registered_address,
-          pan,
-          gstin,
-          contact_person_name,
-          contact_phone,
-          status: 'PENDING' 
+        user_id: userId, company_name, registered_address, pan, gstin, cin, 
+        contact_person_name, contact_phone, status: 'PENDING' 
       }])
       .select();
 
-    if (supplierError) throw supplierError;
+    if (supplierError) throw new Error(`Supplier Table: ${supplierError.message}`);
+    const supplierId = supplierData[0].id;
+    console.log("✅ Supplier created:", supplierId);
 
-    res.status(201).json({
-      success: true,
-      message: "Supplier account created successfully. Awaiting Admin Approval.",
-      data: {
-        user_id: newUserId,
-        supplier_id: supplierData[0].id,
-        company: supplierData[0].company_name
-      }
-    });
+   // 3. File Uploads
+let cancelledChequePath = null;
+
+    if (req.files && req.files.length > 0) {
+        await Promise.all(req.files.map(async (file) => {
+            const filePath = `${supplierId}/${Date.now()}_${file.fieldname}`;
+            
+            // Upload to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('supplier-docs') 
+                .upload(filePath, file.buffer, { contentType: file.mimetype });
+
+            if (uploadError) {
+                console.error(`❌ Upload fail for ${file.fieldname}:`, uploadError.message);
+                return; 
+            }
+
+            // --- LOGIC CHANGE START ---
+            if (file.fieldname === 'cancelled_cheque') {
+                // Store path for Financials table ONLY, do NOT insert into supplier_documents
+                cancelledChequePath = uploadData.path;
+                console.log("✅ Cheque uploaded to storage");
+            } else {
+                // Only insert into supplier_documents if it's NOT a cheque
+                const { error: docTableError } = await supabase
+                    .from('supplier_documents')
+                    .insert([{
+                        supplier_id: supplierId,
+                        document_type: file.fieldname.toUpperCase(), // Matches LICENSE, AFFIDAVIT
+                        file_path: uploadData.path
+                    }]);
+
+                if (docTableError) {
+                    console.error(`❌ DB Insert Error for ${file.fieldname}:`, docTableError.message);
+                } else {
+                    console.log(`✅ Document record added for: ${file.fieldname}`);
+                }
+            }
+    }));
+}
+
+// 4. Financials (This runs AFTER the loop above because of the await)
+const { error: finError } = await supabase
+  .from('supplier_financials')
+  .insert([{
+    supplier_id: supplierId,
+    bank_account_no, 
+    ifsc_code,
+    bank_name,
+    cancelled_cheque_file: cancelledChequePath // Now guaranteed to be set
+  }]);
+    if (finError) console.error("❌ Financials Table Error:", finError.message);
+    else console.log("✅ Financials added");
+
+    // 5. Categories
+    if (categories) {
+      const catArray = typeof categories === 'string' ? JSON.parse(categories) : categories;
+      const inserts = catArray.map(cat => ({ supplier_id: supplierId, category_name: cat }));
+      const { error: catErr } = await supabase.from('supplier_categories').insert(inserts);
+      if (catErr) console.error("❌ Category Error:", catErr.message);
+      else console.log("✅ Categories added");
+    }
+
+    return res.status(201).json({ success: true, message: "Profile Registered Successfully" });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ SYSTEM FAILURE:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.refreshToken = async (req, res) => {
