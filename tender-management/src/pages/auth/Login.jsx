@@ -5,10 +5,15 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { authAPI } from '../../api/auth.service'; // Using the centralized API file
 import toast from 'react-hot-toast';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+
 const Login = () => {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // 2. Initialize it here
+  
+
   const [formData, setFormData] = useState({
     email: '',
     flat_no: '',
@@ -22,11 +27,23 @@ const Login = () => {
   const showError = (msg) => toast.error(msg, {
     style: { borderRadius: '20px', fontWeight: 'bold' }
   });
-
+useEffect(() => {
+  const token = localStorage.getItem('accessToken');
+  const role = localStorage.getItem('userRole');
+  
+  if (token) {
+    if (role === 'ADMIN') navigate('/admin/dashboard');
+    else if (role === 'RESIDENT') navigate('/dashboard/resident');
+    else if (role === 'SUPPLIER') navigate('/supplier/portal');
+  }
+}, [navigate]);
 const handleLogin = async (e) => {
   e.preventDefault();
   setLoading(true);
   
+  // ADD THIS LINE: Clear any previous toasts before starting
+  toast.dismiss(); 
+
   const payload = isAdminMode 
     ? { email: formData.email, password: formData.password }
     : { flat_no: formData.flat_no, password: formData.password };
@@ -35,19 +52,26 @@ const handleLogin = async (e) => {
     const { data } = await authAPI.login(payload);
     
     if (data.success) {
-      showSuccess(isAdminMode ? "Access Granted!" : "Welcome Home!");
+      // 1. Show the success toast
+      // showSuccess(isAdminMode ? "Access Granted!" : "Welcome Home!");
       
+      // 2. Set storage
       localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('userEmail', data.user.email); // Store the actual login email
-localStorage.setItem('userRole', data.user.role);
-localStorage.setItem('userStatus', data.user.status || 'PENDING');
+      localStorage.setItem('userEmail', data.user.email);
+      localStorage.setItem('userRole', data.user.role);
+      localStorage.setItem('userStatus', data.user.status || 'PENDING');
+
+      // 3. Redirect
       setTimeout(() => {
-          if (data.user.role === 'ADMIN') window.location.href = '/admin/dashboard';
-          else if (data.user.role === 'RESIDENT') window.location.href = '/dashboard/resident';
-          else window.location.href = '/supplier/portal';
+          // Use navigate instead of window.location.href to stay in SPA mode
+          if (data.user.role === 'ADMIN') navigate('/admin/dashboard');
+          else if (data.user.role === 'RESIDENT') navigate('/dashboard/resident');
+          else navigate('/supplier/portal');
       }, 1500);
     }
   } catch (err) {
+    // Clear loading toasts if you had them
+    toast.dismiss(); 
     showError(err.response?.data?.message || "Authentication failed");
   } finally {
     setLoading(false);

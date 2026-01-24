@@ -21,7 +21,9 @@ export default function RegisterSupplier() {
   const [files, setFiles] = useState({
     cancelled_cheque: null,
     pan_card: null,
-    gst_cert: null
+    gst_cert: null,
+    license: null,   // Matches DB: LICENSE
+  affidavit: null
   });
 
   const CATEGORIES = ['Construction', 'Plumbing', 'Electrical', 'Security', 'Landscaping', 'Housekeeping', 'IT Services'];
@@ -83,43 +85,51 @@ export default function RegisterSupplier() {
     window.scrollTo(0, 0);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (formData.categories.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one service category.' });
-      return;
-    }
-    if (!files.cancelled_cheque) {
-      setMessage({ type: 'error', text: 'Cancelled Cheque is mandatory for verification.' });
-      return;
-    }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (formData.categories.length === 0) {
+    setMessage({ type: 'error', text: 'Please select at least one service category.' });
+    return;
+  }
+  // Keep this check because your backend needs it for the Financials table
+  if (!files.cancelled_cheque) {
+    setMessage({ type: 'error', text: 'Cancelled Cheque is mandatory for bank verification.' });
+    return;
+  }
 
-    setLoading(true);
-    const data = new FormData();
-    Object.keys(formData).forEach(key => {
-        if(key === 'categories') {
-          data.append('categories', JSON.stringify(formData.categories));
-        } else {
-            data.append(key, formData[key]);
-        }
-    });
-    
-    if (files.cancelled_cheque) data.append('cancelled_cheque', files.cancelled_cheque);
-    if (files.pan_card) data.append('pan_card', files.pan_card);
-    if (files.gst_cert) data.append('gst_cert', files.gst_cert);
-
-    try {
-      const response = await authAPI.registerSupplier(data);
-      setMessage({ type: 'success', text: response.data.message });
-      setStep(4); 
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || "Registration failed." });
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  const data = new FormData();
+  
+  // 1. Append Text Data
+  Object.keys(formData).forEach(key => {
+    if(key === 'categories') {
+      data.append('categories', JSON.stringify(formData.categories));
+    } else {
+      data.append(key, formData[key]);
     }
-  };
+  });
+  
+  // 2. Append Files
+  // This goes to 'supplier_financials' (handled by your backend)
+  data.append('cancelled_cheque', files.cancelled_cheque); 
 
+  // These go to 'supplier_documents' (Matches your DB Enum: LICENSE, AFFIDAVIT)
+  if (files.license) data.append('license', files.license); 
+  if (files.affidavit) data.append('affidavit', files.affidavit);
+
+  // NOTE: PAN_CARD is removed here because it's not in your DB Enum
+  
+  try {
+    const response = await authAPI.registerSupplier(data);
+    setMessage({ type: 'success', text: response.data.message });
+    setStep(4); 
+  } catch (error) {
+    setMessage({ type: 'error', text: error.response?.data?.message || "Registration failed." });
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Header />
@@ -211,10 +221,27 @@ export default function RegisterSupplier() {
                     ))}
                   </div>
 
-                  <div className="space-y-4 mb-10">
-                    <FileUpload label="Cancelled Cheque (Required)" name="cancelled_cheque" fileName={files.cancelled_cheque?.name} onChange={handleFileChange} />
-                    <FileUpload label="PAN Card PDF / Image" name="pan_card" fileName={files.pan_card?.name} onChange={handleFileChange} />
-                  </div>
+                 <div className="grid md:grid-cols-2 gap-4 mb-10">
+      <FileUpload 
+        label="Cancelled Cheque (Required)" 
+        name="cancelled_cheque" 
+        fileName={files.cancelled_cheque?.name} 
+        onChange={handleFileChange} 
+      />
+      <FileUpload 
+        label="Business License" 
+        name="license" 
+        fileName={files.license?.name} 
+        onChange={handleFileChange} 
+      />
+      
+      <FileUpload 
+        label="Notarized Affidavit" 
+        name="affidavit" 
+        fileName={files.affidavit?.name} 
+        onChange={handleFileChange} 
+      />
+    </div>
 
                   <div className="flex gap-4">
                     <button type="button" onClick={prevStep} className="flex-1 border-2 border-neutral-900 py-5 rounded-2xl font-black flex items-center justify-center gap-2">

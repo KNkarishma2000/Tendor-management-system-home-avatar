@@ -57,15 +57,40 @@ useEffect(() => {
       return () => clearInterval(interval);
     }
   }, [isOpen, step]);
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!message.trim()) return;
-    try {
-      await supportAPI.sendQuery(message);
-      setMessage('');
-      fetchHistory();
-    } catch (err) { alert("Failed to send"); }
-  };
+ // 1. Add this function to handle the first message
+const handleStartChat = async (selectedCategory) => {
+  setCategory(selectedCategory);
+  setLoading(true);
+  try {
+    // Send the first message automatically based on the category
+    const initialMessage = `I have a query regarding: ${selectedCategory}`;
+    await supportAPI.sendQuery(initialMessage);
+    
+    // Switch to chat view and refresh history
+    setStep('chat');
+    await checkExistingChat(); 
+  } catch (err) {
+    console.error("Failed to start chat:", err);
+    alert("Could not start chat. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// 2. Fix the handleSendMessage function
+const handleSendMessage = async (e) => {
+  e.preventDefault();
+  if (!message.trim()) return;
+  
+  try {
+    await supportAPI.sendQuery(message);
+    setMessage('');
+    // CHANGE THIS: fetchHistory() was not defined, use checkExistingChat()
+    checkExistingChat(); 
+  } catch (err) { 
+    alert("Failed to send"); 
+  }
+};
 
   if (role === 'ADMIN') return null;
 

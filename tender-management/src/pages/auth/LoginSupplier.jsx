@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, Briefcase, ShieldCheck, AlertCircle } from 'lucide-react';
 import { authAPI } from '../../api/auth.service'; // Importing the API service we built
@@ -15,7 +15,18 @@ export default function LoginSupplier() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError(''); // Clear error when user types
   };
-
+// 1. ADD SESSION CHECK HERE
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    const role = localStorage.getItem('userRole');
+    
+    if (token) {
+      // If already logged in, send them to their specific dashboard
+      if (role === 'SUPPLIER') navigate('/supplier/portal');
+      else if (role === 'ADMIN') navigate('/admin/dashboard');
+      else if (role === 'RESIDENT') navigate('/dashboard/resident');
+    }
+  }, [navigate]);
 const handleLogin = async (e) => {
   e.preventDefault(); 
   setLoading(true);
