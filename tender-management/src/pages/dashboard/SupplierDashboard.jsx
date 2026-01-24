@@ -27,41 +27,45 @@ export default function SupplierDashboard() {
   const [myRecentBids, setMyRecentBids] = useState([]);
 
   useEffect(() => {
-    const loadSupplierData = async () => {
-      try {
-        setLoading(true);
-        // Fetch Tenders and Bids (Adjust these API calls to your actual service)
-        const [tendersRes, bidsRes] = await Promise.all([
-          tenderAdminAPI.getAllTenders(), 
-          communityAPI.getNotices() // Placeholder for bids - replace with your bid API
-        ]);
+  const loadSupplierData = async () => {
+    try {
+      setLoading(true);
+      
+      const [tendersRes, bidsRes] = await Promise.all([
+        tenderAdminAPI.getAllTenders(), 
+        communityAPI.getNotices() 
+      ]);
 
-        const allTenders = tendersRes?.data || [];
-        const activeTenders = allTenders.filter(t => t.status === 'published');
-        
-        setStats({
-          activeTenders: activeTenders.length,
-          myBids: 12, // Placeholder static data for demonstration
-          wonTenders: 3,
-          pendingReviews: 5
-        });
+      // 1. SAFE DATA EXTRACTION
+      // Often Axios data is nested: tendersRes.data.data
+      const allTenders = Array.isArray(tendersRes?.data) 
+        ? tendersRes.data 
+        : (tendersRes?.data?.data || []);
 
-        setTenders(activeTenders.slice(0, 5));
-        // Mocking applied bids status
-        setMyRecentBids([
-          { id: 1, title: 'CCTV Maintenance 2026', status: 'Under Review', price: '45,000' },
-          { id: 2, title: 'Solar Panel Installation', status: 'Awarded', price: '1,20,000' },
-          { id: 3, title: 'Garden Landscaping', status: 'Rejected', price: '30,000' }
-        ]);
+      // 2. SAFE FILTERING
+      // Ensure allTenders is an array before calling .filter
+      const activeTenders = allTenders.filter(t => 
+        t && t.status && t.status.toLowerCase() === 'published'
+      );
+      
+      setStats({
+        activeTenders: activeTenders.length,
+        myBids: 12, 
+        wonTenders: 3,
+        pendingReviews: 5
+      });
 
-      } catch (error) {
-        console.error("Error loading supplier dashboard:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSupplierData();
-  }, []);
+      setTenders(activeTenders.slice(0, 5));
+      
+      // ... rest of your code
+    } catch (error) {
+      console.error("Error loading supplier dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  loadSupplierData();
+}, []);
 
   if (loading) {
     return (
@@ -195,4 +199,5 @@ const StatCard = ({ icon: Icon, label, value, sub, bg, color }) => (
     <div className="text-xs font-black text-neutral-400 uppercase tracking-widest">{label}</div>
     <div className="mt-1 text-[10px] font-bold text-neutral-400 italic">{sub}</div>
   </div>
+
 );
