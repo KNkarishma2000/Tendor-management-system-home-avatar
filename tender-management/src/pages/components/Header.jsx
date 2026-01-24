@@ -29,7 +29,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Blog', path: '/blog' },
-    { name: 'Events', path: '/gallery' },
+    { name: 'Gallery', path: '/gallery' },
     { name: 'Carnivals', path: '/carnivals' },
     { name: 'Tenders', path: '/tenders' },
   ];
