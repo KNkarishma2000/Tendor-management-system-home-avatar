@@ -34,6 +34,7 @@ useEffect(() => {
   if (token) {
     if (role === 'ADMIN') navigate('/admin/dashboard');
     else if (role === 'RESIDENT') navigate('/dashboard/resident');
+    else if (role === 'ACCOUNTANT') navigate('/accountant/dashboard'); // Added this
     else if (role === 'SUPPLIER') navigate('/supplier/portal');
   }
 }, [navigate]);
@@ -64,9 +65,18 @@ const handleLogin = async (e) => {
       // 3. Redirect
       setTimeout(() => {
           // Use navigate instead of window.location.href to stay in SPA mode
-          if (data.user.role === 'ADMIN') navigate('/admin/dashboard');
-          else if (data.user.role === 'RESIDENT') navigate('/dashboard/resident');
-          else navigate('/supplier/portal');
+         if (data.user.role === 'ADMIN') {
+    navigate('/admin/dashboard');
+} else if (data.user.role === 'RESIDENT') {
+    navigate('/dashboard/resident');
+} else if (data.user.role === 'ACCOUNTANT') {
+    navigate('/accountant/dashboard');
+} else if (data.user.role === 'SUPPLIER') {
+    navigate('/supplier/portal');
+} else {
+    // If no role matches, go to a generic landing or show error
+    navigate('/'); 
+}
       }, 1500);
     }
   } catch (err) {

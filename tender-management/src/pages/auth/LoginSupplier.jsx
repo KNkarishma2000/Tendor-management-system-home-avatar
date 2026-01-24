@@ -16,17 +16,17 @@ export default function LoginSupplier() {
     if (error) setError(''); // Clear error when user types
   };
 // 1. ADD SESSION CHECK HERE
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    const role = localStorage.getItem('userRole');
-    
-    if (token) {
-      // If already logged in, send them to their specific dashboard
-      if (role === 'SUPPLIER') navigate('/supplier/portal');
-      else if (role === 'ADMIN') navigate('/admin/dashboard');
-      else if (role === 'RESIDENT') navigate('/dashboard/resident');
-    }
-  }, [navigate]);
+useEffect(() => {
+  const token = localStorage.getItem('accessToken');
+  const role = localStorage.getItem('userRole');
+  
+  if (token) {
+    if (role === 'ADMIN') navigate('/admin/dashboard');
+    else if (role === 'RESIDENT') navigate('/dashboard/resident');
+    else if (role === 'ACCOUNTANT') navigate('/accountant/dashboard'); // Added this
+    else if (role === 'SUPPLIER') navigate('/supplier/portal');
+  }
+}, [navigate]);
 const handleLogin = async (e) => {
   e.preventDefault(); 
   setLoading(true);

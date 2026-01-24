@@ -39,6 +39,14 @@ import CarnivalBidSubmissionPage from './pages/tenders/CarnivalBidSubmissionPage
 import CarnivalAdminDetails from './pages/admin/CarnivalDetailsPage';
 import AdminSupportInbox from './pages/admin/AdminSupportInbox';
 import Notices from './layouts/Notices';
+import AccountantDashboard from './pages/dashboard/AccountantDashboard';
+import AccountantDriveSearch from './pages/accountant/DriveSearch';
+import AttendanceSync from './pages/accountant/AttendanceSync';
+import RawDataSync from './pages/accountant/RawDataSync';
+import InvoiceExtractor from './pages/accountant/InvoiceExtractor';
+import Reconciliation from './pages/accountant/Reconciliation';
+import BankReconciliation from './pages/accountant/BankReconciliation';
+import ZohoVsElemensor from './pages/accountant/ZohoVsElemensor';
 
 
 
@@ -68,6 +76,19 @@ function App() {
         <Route path="/blog" element={<AllBlogs />} />
             <Route path="/blog/:id" element={<BlogDetails />} />
       {/* Admin Dashboard Routes */}
+     <Route path="/accountant" element={<DashboardLayout />}>
+  <Route index element={<Navigate to="dashboard" replace />} />
+  <Route path="dashboard" element={<AccountantDashboard />} />
+  
+  {/* FIXED: Removed the leading slash from googledrive */}
+  <Route path="googledrive" element={<AccountantDriveSearch />} />
+    <Route path="attendance" element={<AttendanceSync />} />
+      <Route path="export" element={<RawDataSync />} />
+       <Route path="invoices" element={<InvoiceExtractor />} />
+           <Route path="purchasereconcilation" element={<Reconciliation />} />
+             <Route path="bankreconcilation" element={<BankReconciliation />} />
+                 <Route path="zohovselemensor" element={<ZohoVsElemensor />} />
+</Route>
       <Route path="/admin" element={<DashboardLayout />}>
         {/* Redirect /admin to /admin/dashboard */}
         <Route index element={<Navigate to="dashboard" replace />} />

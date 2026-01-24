@@ -135,7 +135,7 @@ export default function SupplierDashboard() {
                 </div>
                 <div className="flex items-center">
                   <button 
-                    onClick={() => navigate(`/supplier/tender/${tender.id}`)}
+                    onClick={() => navigate(`/supplier/tenders/${tender.id}`)}
                     className="w-full md:w-auto bg-neutral-900 text-white px-8 py-4 rounded-2xl font-black text-xs hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
                   >
                     VIEW & BID <ExternalLink size={16} />
@@ -201,4 +201,3 @@ const StatCard = ({ icon: Icon, label, value, sub, bg, color }) => (
   </div>
 
 );
-

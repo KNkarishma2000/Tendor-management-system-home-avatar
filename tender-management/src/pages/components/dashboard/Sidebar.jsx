@@ -13,6 +13,19 @@ const MENU_ITEMS = {
     { label: 'Suppliers', icon: FileText, path: '/admin/suppliers' },
     { label: 'Support Queries', icon: MessageSquare, path: '/admin/support' },
   ],
+  // Add these to MENU_ITEMS in your Sidebar component
+ACCOUNTANT: [
+  { label: 'Overview', icon: LayoutDashboard, path: '/accountant/dashboard' },
+  { label: 'Attendance', icon: Users, path: '/accountant/attendance' }, // Fixed path
+  { label: 'Google Drive', icon: Settings, path: '/accountant/googledrive' }, // Match App.jsx
+  { label: 'Raw Data Export', icon: FileText, path: '/accountant/export' },
+  { label: 'Invoices', icon: Briefcase, path: '/accountant/invoices' },
+  { label: 'Purchase Reconciliation', icon: Settings, path: '/accountant/purchasereconcilation' },
+    { label: 'Bank Reconciliation', icon: Settings, path: '/accountant/bankreconcilation' },
+{ label: 'Zoho VS Elemensor', icon: Settings, path: '/accountant/zohovselemensor' },
+    
+  
+],
   SUPPLIER: [
     // { label: 'Bidding Board', icon: Briefcase, path: '/supplier/bids' },
     // { label: 'My Contracts', icon: FileText, path: '/dashboard/contracts' },
@@ -36,7 +49,8 @@ export default function Sidebar({ role }) {
 const roleHeadings = {
     ADMIN: 'MHA Admin',
     RESIDENT: 'MHA Resident',
-    SUPPLIER: 'MHA Supplier'
+    SUPPLIER: 'MHA Supplier',
+    ACCOUNTANT: 'MHA Finance'
   };
 
   // 2. Fallback to 'MHA Portal' if role is undefined

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://palegreen-rhinoceros-358698.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -55,7 +55,10 @@ export const authAPI = {
   register: (userData) => apiClient.post('/auth/register', userData),
   
   // Register Supplier (Full Profile)
-  registerSupplier: (supplierData) => apiClient.post('/auth/register-supplier', supplierData),
+  // Correct (Handles files and multi-table data)
+registerSupplier: (formData) => apiClient.post('/auth/register-supplier', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+}),
   
   // Logout and clear session
   logout: () => apiClient.post('/auth/logout'),
@@ -152,7 +155,7 @@ export const BiddingTenderAPI = {
  submitBid: (formData) => apiClient.post('/bids/submit', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-
+getAllMyBids: () => apiClient.get('/bids/my-bids'),
   // 2. Admin: Get all tech-qualified bids for comparison (L1 identification)
   getComparison: (tenderId) => apiClient.get(`/awards/comparison/${tenderId}`),
 
@@ -255,7 +258,54 @@ export const publicTenderAPI = {
   getTenders: () => apiClient.get('/tenders'),
   getTenderDetails: (id) => apiClient.get(`/tenders/${id}`),
 };
+// --- FINANCE & DOCUMENT MANAGEMENT API ---
+// --- FINANCE & DOCUMENT MANAGEMENT API ---
+export const financeAPI = {
+  searchDrive: (searchTerm) => 
+    apiClient.get('/drive/search', { params: { searchTerm } }),
 
+  // Existing Attendance Sync
+  processAttendanceSync: (data) => 
+    apiClient.post('/drive/attendance-process', data),
+
+  getAttendanceHistory: () => 
+    apiClient.get('/drive/attendance-history'),
+
+  // ✅ NEW: Process Raw Data (NEFT/POS/MyGate) to a single Excel
+  // data should contain: { filename, neft_file, pos_file, mygate_file }
+  processRawDataToExcel: (data) => 
+    apiClient.post('/drive/raw-data-process', data),
+
+  // ✅ NEW: Fetch the Raw Data export history for the "Attendance Sheets" table
+  getRawDataHistory: () => 
+    apiClient.get('/drive/raw-data-history'),
+  // ✅ NEW: Invoice Extractor Routes
+  // data should contain: { folder_name, folder_url }
+  processInvoiceExtraction: (data) => 
+    apiClient.post('/drive/invoice-extract', data),
+
+  // Fetches history from 'invoice_extractions' table
+  getInvoiceHistory: () => 
+    apiClient.get('/drive/invoice-history'),
+ // 1. Purchase Reconciliation
+  processReconciliation: (data) => 
+    apiClient.post('/drive/reconciliation-process', data),
+  getReconciliationHistory: () => 
+    apiClient.get('/drive/reconciliation-history'),
+
+  // 2. Bank & POS Sync (Update these to match the new routes)
+  processBankSync: (data) => 
+    apiClient.post('/drive/bank-sync-process', data), // Matches new route
+
+  getBankHistory: () => 
+    apiClient.get('/drive/bank-sync-history'),
+  // 6. ✅ NEW: Zoho vs Elemensor Mapping (30-min Process)
+  processZohoVsElemensor: (data) => 
+    apiClient.post('/drive/zoho-elemensor-process', data),
+    
+  getZohoVsElemensorHistory: () => 
+    apiClient.get('/drive/zoho-elemensor-history'), // Matches new rout
+};
 export default apiClient;
 
 
