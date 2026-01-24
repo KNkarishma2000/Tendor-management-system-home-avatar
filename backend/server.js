@@ -43,7 +43,8 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const supplierRoutes = require('./routes/suppliers');
 const residentsRoutes = require('./routes/residents');
 const communityRoutes=require('./routes/communityRoutes');
-const carnivalRoutes = require('./routes/carnivalRoutes'); // ✅ 'routes' should be plural
+const carnivalRoutes = require('./routes/carnivalRoutes'); 
+const driveRoutes = require('./routes/driveRoutes');// ✅ 'routes' should be plural
 // const supplierRoutes = require('./routes/suppliers'); // Add later
 
 const app = express();
@@ -95,6 +96,7 @@ app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/residents', residentsRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/carnival', carnivalRoutes);
+app.use('/api/drive', driveRoutes);
 // app.use('/api/suppliers', supplierRoutes);
 
 // =======================
