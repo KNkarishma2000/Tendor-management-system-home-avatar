@@ -86,7 +86,7 @@ export default function SupplierDashboard() {
           <p className="text-neutral-500 font-bold italic">Bidding, Contracts, and Opportunities.</p>
         </div>
         <button 
-          onClick={() => navigate('/dashboard/bids')}
+          onClick={() => navigate('/supplier/bids')}
           className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
         >
           <Search size={18} /> EXPLORE TENDERS
@@ -135,7 +135,7 @@ export default function SupplierDashboard() {
                 </div>
                 <div className="flex items-center">
                   <button 
-                    onClick={() => navigate(`/dashboard/tenders/${tender.id}`)}
+                    onClick={() => navigate(`/supplier/tenders/${tender.id}`)}
                     className="w-full md:w-auto bg-neutral-900 text-white px-8 py-4 rounded-2xl font-black text-xs hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
                   >
                     VIEW & BID <ExternalLink size={16} />
@@ -201,3 +201,4 @@ const StatCard = ({ icon: Icon, label, value, sub, bg, color }) => (
   </div>
 
 );
+
