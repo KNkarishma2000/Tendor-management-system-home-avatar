@@ -38,6 +38,7 @@ import SupplierCarnivalList from './pages/tenders/CarnivalPage';
 import CarnivalBidSubmissionPage from './pages/tenders/CarnivalBidSubmissionPage';
 import CarnivalAdminDetails from './pages/admin/CarnivalDetailsPage';
 import AdminSupportInbox from './pages/admin/AdminSupportInbox';
+import Notices from './layouts/Notices';
 
 
 
@@ -54,7 +55,7 @@ function App() {
       {/* Public Routes */}
       <Route path="/" element={<PublicLayout />} />
       <Route path="/login" element={<Login />} />
-      
+        <Route path="/notices" element={<Notices />} />
       
  <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/tenders" element={<PublicTenderList />} />
