@@ -7,7 +7,8 @@ const {
   register, 
   login, 
   registerSupplier, 
-  refreshToken, 
+  refreshToken,
+  sendSupplierOTP,
   residentLogin,
   logout, 
   forgotPassword,
@@ -21,6 +22,7 @@ router.post('/register-supplier', upload.any(), registerSupplier);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
 // New Password Reset Routes
+router.post('/send-supplier-otp', sendSupplierOTP);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 module.exports = router;

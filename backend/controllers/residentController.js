@@ -1,50 +1,69 @@
 const supabase = require('../config/supabase');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
+// --- Validation Helper ---
+const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 exports.registerResident = async (req, res) => {
   try {
-    const { email, password, full_name, block, flat_no, mobile_no, family_members } = req.body;
+    const { 
+      email, password, full_name, block, flat_no, 
+      mobile_no, family_members, otp 
+    } = req.body;
 
-    console.log("📩 Registration attempt for:", email);
+    // 1. Basic Email Format Validation
+    if (!validateEmail(email)) {
+      return res.status(400).json({ success: false, message: "Please provide a valid email address." });
+    }
 
-    // 1. Check if user already exists
-    const { data: existingUser, error: checkError } = await supabase
+    // 2. VERIFY OTP FIRST
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('email_verifications')
+      .select('*')
+      .eq('email', email)
+      .eq('otp', otp)
+      .single();
+
+    if (verifyError || !verifyData) {
+      return res.status(400).json({ success: false, message: "Invalid or missing OTP. Please verify your email." });
+    }
+
+    if (new Date() > new Date(verifyData.expires_at)) {
+      return res.status(400).json({ success: false, message: "OTP has expired. Please request a new one." });
+    }
+
+    // 3. Check if user already exists (Safety check)
+    const { data: existingUser } = await supabase
       .from('users')
       .select('email')
-      .eq('email', email);
+      .eq('email', email)
+      .single();
 
-    if (checkError) {
-        console.error("❌ Database Check Error:", checkError);
-        throw checkError;
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: "This email is already registered." });
     }
 
-    if (existingUser && existingUser.length > 0) {
-      console.log("⚠️ Email already exists:", email);
-      return res.status(409).json({ 
-        success: false, 
-        message: "An account with this email already exists." 
-      });
-    }
-
-    // 2. Hash the password
+    // 4. Hash Password
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-    // 3. Insert into 'users' table
+    // 5. Transaction: Create User
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .insert([{ email, password_hash, role: 'RESIDENT', is_active: false, is_verified: false }])
+      .insert([{ 
+        email, 
+        password_hash, 
+        role: 'RESIDENT', 
+        is_active: false, 
+        is_verified: true // Set to true because they verified via OTP
+      }])
       .select();
 
-    if (userError) {
-        console.error("❌ User Table Insert Error:", userError);
-        return res.status(400).json({ success: false, message: userError.message });
-    }
-    
+    if (userError) throw userError;
     const userId = userData[0].id;
 
-    // 4. Insert into 'residents' table
-    const { data: residentData, error: residentError } = await supabase
+    // 6. Create Resident Profile
+    const { error: residentError } = await supabase
       .from('residents')
       .insert([{ 
         user_id: userId, 
@@ -54,29 +73,95 @@ exports.registerResident = async (req, res) => {
         mobile_no, 
         family_members: parseInt(family_members) || 1, 
         status: 'PENDING' 
-      }])
-      .select();
+      }]);
 
     if (residentError) {
-      console.error("❌ Resident Table Insert Error:", residentError);
-      await supabase.from('users').delete().eq('id', userId); // Rollback
-      return res.status(400).json({ success: false, message: residentError.message });
+      await supabase.from('users').delete().eq('id', userId); // Rollback user
+      throw residentError;
     }
 
-    console.log("✅ Registration Successful for:", email);
+    // 7. Cleanup: Delete OTP after successful use
+    await supabase.from('email_verifications').delete().eq('email', email);
+
     res.status(201).json({
       success: true,
       message: "Registration successful! Please wait for Admin approval."
     });
 
   } catch (error) {
-    console.error("🔥 Global Registration Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Internal Server Error: " + error.message 
-    });
+    console.error("🔥 Resident Registration Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.sendResidentOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !validateEmail(email)) {
+      return res.status(400).json({ message: "Valid email is required" });
+    }
+
+    // Check if email is already in use
+  const { data: user, error: userError } = await supabase
+  .from('users')
+  .select('id')
+  .eq('email', email)
+  .maybeSingle(); // Use maybeSingle to avoid erroring on 0 results
+
+if (user) return res.status(400).json({ message: "Email already exists" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    // Store OTP in your email_verifications table
+    const { error } = await supabase
+      .from('email_verifications')
+      .upsert([{ email, otp, expires_at: expiresAt }], { onConflict: 'email' });
+
+    if (error) throw error;
+
+    // Reuse your existing sendGmailOTP helper
+    await sendGmailOTP(email, otp, "Resident Registration");
+
+    res.status(200).json({ success: true, message: "OTP sent successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+async function sendGmailOTP(email, otp, type) {
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      type: 'OAuth2',
+      user: process.env.EMAIL_USER,
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+    },
+  });
+
+  const mailOptions = {
+    from: `"Community Portal" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Verification Code: ${otp}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
+        <h2 style="color: #fbbf24;">Verify Your Email</h2>
+        <p>Hello,</p>
+        <p>Your OTP for <strong>${type}</strong> is:</p>
+        <div style="background: #f4f4f4; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; border-radius: 10px;">
+          ${otp}
+        </div>
+        <p>This code will expire in 15 minutes. Please do not share this code with anyone.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 12px; color: #888;">Resident Management System</p>
+      </div>
+    `,
+  };
+
+  return await transporter.sendMail(mailOptions);
+}
 exports.approveResident = async (req, res) => {
   try {
     const { resident_id } = req.params;

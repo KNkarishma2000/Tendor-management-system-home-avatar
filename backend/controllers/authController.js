@@ -188,111 +188,225 @@ exports.login = async (req, res) => {
 // ... existing register and login code ...
 
 // 3. UNIFIED SUPPLIER REGISTRATION (User + Profile)
+
+
+// --- HELPER: Send OTP via Gmail ---
+async function sendGmailOTP(email, otp, type = "Registration") {
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      type: 'OAuth2',
+      user: process.env.EMAIL_USER,
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+    },
+  });
+
+  const mailOptions = {
+    from: `"Avatar Portal" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `${type} Verification Code`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
+        <h2 style="color: #4CAF50;">Verify Your Email</h2>
+        <p>Use the following One-Time Password (OTP) to complete your ${type.toLowerCase()}:</p>
+        <h1 style="text-align: center; letter-spacing: 5px; color: #333;">${otp}</h1>
+        <p>This code will expire in 15 minutes. If you did not request this, please ignore this email.</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+// --- 1. SEND OTP (Call this first from Frontend) ---
+exports.sendSupplierOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) return res.status(400).json({ message: "Email already registered" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    // Upsert OTP into verification table
+    const { error } = await supabase
+      .from('email_verifications')
+      .upsert([{ email, otp, expires_at: expiresAt }], { onConflict: 'email' });
+
+    if (error) throw error;
+
+    await sendGmailOTP(email, otp, "Supplier Registration");
+
+    res.status(200).json({ success: true, message: "OTP sent to email" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// --- 2. FULL REGISTER SUPPLIER (With OTP Check & File Upload) ---
+// --- FULL REGISTER SUPPLIER (With OTP Check & Multi-Table Save) ---
 exports.registerSupplier = async (req, res) => {
-  console.log("--- STARTING REGISTRATION ---");
-  console.log("Body:", req.body);
+  console.log("--- STARTING FULL SUPPLIER REGISTRATION ---");
   console.log("Files received:", req.files ? req.files.length : "NONE");
 
   try {
     const { 
-      email, password, company_name, registered_address, 
+      email, password, otp, company_name, registered_address, 
       pan, gstin, cin, contact_person_name, contact_phone, 
       bank_account_no, ifsc_code, bank_name, categories 
     } = req.body;
 
-    // 1. Create User
+    // A. Verify OTP
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('email_verifications')
+      .select('*')
+      .eq('email', email)
+      .eq('otp', otp)
+      .single();
+
+    if (verifyError || !verifyData) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    if (new Date() > new Date(verifyData.expires_at)) {
+      return res.status(400).json({ success: false, message: "OTP expired" });
+    }
+
+    // B. Step 1: Create User Account
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
+    
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .insert([{ email, password_hash, role: 'SUPPLIER', is_active: true, is_verified: false }])
-      .select();
-
-    if (userError) throw new Error(`User Table: ${userError.message}`);
-    const userId = userData[0].id;
-    console.log("✅ User created:", userId);
-
-    // 2. Create Supplier
-    const { data: supplierData, error: supplierError } = await supabase
-      .from('suppliers')
       .insert([{ 
-        user_id: userId, company_name, registered_address, pan, gstin, cin, 
-        contact_person_name, contact_phone, status: 'PENDING' 
+          email, 
+          password_hash, 
+          role: 'SUPPLIER', 
+          is_active: true, 
+          is_verified: true 
       }])
       .select();
 
-    if (supplierError) throw new Error(`Supplier Table: ${supplierError.message}`);
+    if (userError) throw new Error(`User Table Failure: ${userError.message}`);
+    const userId = userData[0].id;
+    console.log("✅ Step 1: User created:", userId);
+
+    // C. Step 2: Create Supplier Profile
+    const { data: supplierData, error: supplierError } = await supabase
+      .from('suppliers')
+      .insert([{ 
+        user_id: userId, 
+        company_name, 
+        registered_address, 
+        pan, 
+        gstin, 
+        cin, 
+        contact_person_name, 
+        contact_phone, 
+        status: 'PENDING' 
+      }])
+      .select();
+
+    if (supplierError) {
+      // Rollback user if supplier creation fails
+      await supabase.from('users').delete().eq('id', userId);
+      throw new Error(`Supplier Table Failure: ${supplierError.message}`);
+    }
     const supplierId = supplierData[0].id;
-    console.log("✅ Supplier created:", supplierId);
+    console.log("✅ Step 2: Supplier profile created:", supplierId);
 
-   // 3. File Uploads
-let cancelledChequePath = null;
-
+    // D. Step 3: Handle File Uploads & Document Registry
+    let cancelledChequePath = null;
     if (req.files && req.files.length > 0) {
-        await Promise.all(req.files.map(async (file) => {
-            const filePath = `${supplierId}/${Date.now()}_${file.fieldname}`;
-            
-            // Upload to Supabase Storage
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('supplier-docs') 
-                .upload(filePath, file.buffer, { contentType: file.mimetype });
+      for (const file of req.files) {
+        const filePath = `${supplierId}/${Date.now()}_${file.fieldname}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('supplier-docs') 
+          .upload(filePath, file.buffer, { contentType: file.mimetype });
 
-            if (uploadError) {
-                console.error(`❌ Upload fail for ${file.fieldname}:`, uploadError.message);
-                return; 
-            }
+        if (uploadError) {
+          console.error(`❌ Upload failed for ${file.fieldname}:`, uploadError.message);
+          continue;
+        }
 
-            // --- LOGIC CHANGE START ---
-            if (file.fieldname === 'cancelled_cheque') {
-                // Store path for Financials table ONLY, do NOT insert into supplier_documents
-                cancelledChequePath = uploadData.path;
-                console.log("✅ Cheque uploaded to storage");
-            } else {
-                // Only insert into supplier_documents if it's NOT a cheque
-                const { error: docTableError } = await supabase
-                    .from('supplier_documents')
-                    .insert([{
-                        supplier_id: supplierId,
-                        document_type: file.fieldname.toUpperCase(), // Matches LICENSE, AFFIDAVIT
-                        file_path: uploadData.path
-                    }]);
+        // Track the path for the financials table later
+        if (file.fieldname === 'cancelled_cheque') {
+          cancelledChequePath = uploadData.path;
+        }
 
-                if (docTableError) {
-                    console.error(`❌ DB Insert Error for ${file.fieldname}:`, docTableError.message);
-                } else {
-                    console.log(`✅ Document record added for: ${file.fieldname}`);
-                }
-            }
-    }));
-}
-
-// 4. Financials (This runs AFTER the loop above because of the await)
-const { error: finError } = await supabase
-  .from('supplier_financials')
-  .insert([{
-    supplier_id: supplierId,
-    bank_account_no, 
-    ifsc_code,
-    bank_name,
-    cancelled_cheque_file: cancelledChequePath // Now guaranteed to be set
-  }]);
-    if (finError) console.error("❌ Financials Table Error:", finError.message);
-    else console.log("✅ Financials added");
-
-    // 5. Categories
-    if (categories) {
-      const catArray = typeof categories === 'string' ? JSON.parse(categories) : categories;
-      const inserts = catArray.map(cat => ({ supplier_id: supplierId, category_name: cat }));
-      const { error: catErr } = await supabase.from('supplier_categories').insert(inserts);
-      if (catErr) console.error("❌ Category Error:", catErr.message);
-      else console.log("✅ Categories added");
+        // Add entry to supplier_documents table
+        const { error: docError } = await supabase.from('supplier_documents').insert([{
+          supplier_id: supplierId,
+          document_type: file.fieldname.toUpperCase(),
+          file_path: uploadData.path
+        }]);
+        
+        if (docError) console.error("❌ Document Record Error:", docError.message);
+      }
+      console.log("✅ Step 3: Files processed");
     }
 
-    return res.status(201).json({ success: true, message: "Profile Registered Successfully" });
+    // E. Step 4: Insert Financials (Critical for Payments)
+    const { error: finError } = await supabase
+      .from('supplier_financials')
+      .insert([{
+        supplier_id: supplierId,
+        bank_account_no, 
+        ifsc_code,
+        bank_name,
+        cancelled_cheque_file: cancelledChequePath
+      }]);
+
+    if (finError) {
+        console.error("❌ Step 4: Financials Table Error:", finError.message);
+        // We don't throw here to prevent full failure, but log it clearly
+    } else {
+        console.log("✅ Step 4: Financials saved");
+    }
+
+    // F. Step 5: Handle Categories (Multi-select)
+    if (categories) {
+      try {
+        const catArray = typeof categories === 'string' ? JSON.parse(categories) : categories;
+        if (Array.isArray(catArray) && catArray.length > 0) {
+          const inserts = catArray.map(cat => ({ 
+              supplier_id: supplierId, 
+              category_name: cat 
+          }));
+          const { error: catError } = await supabase.from('supplier_categories').insert(inserts);
+          if (catError) console.error("❌ Step 5: Category Insert Error:", catError.message);
+          else console.log("✅ Step 5: Categories saved");
+        }
+      } catch (parseError) {
+        console.error("❌ Category Parsing Error:", parseError.message);
+      }
+    }
+
+    // G. Final Step: Cleanup OTP
+    await supabase.from('email_verifications').delete().eq('email', email);
+    console.log("✅ Registration Complete for:", email);
+
+    res.status(201).json({ 
+        success: true, 
+        message: "Verified Supplier Registered! Please wait for admin approval." 
+    });
 
   } catch (error) {
-    console.error("❌ SYSTEM FAILURE:", error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("❌ CRITICAL REGISTRATION FAILURE:", error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.refreshToken = async (req, res) => {
