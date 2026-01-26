@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://palegreen-rhinoceros-358698.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -42,6 +42,7 @@ getCarnivalBidsAdmin: (id) => apiClient.get(`/carnival/admin/details/${id}`),
   updateBidStatus: (bidId, status) => apiClient.put('/carnival/update-status', { bid_id: bidId, status }),
 };
 export const authAPI = {
+  sendSupplierOTP: (data) => apiClient.post('/auth/send-supplier-otp', data),
   // Unified Login (Email or Flat No)
   login: (credentials) => apiClient.post('/auth/login', credentials),
   forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
@@ -195,25 +196,22 @@ export const projectAPI = {
 };
 // --- USER & AUTHENTICATION ---
 // --- USER & AUTHENTICATION ---
+// --- USER & AUTHENTICATION ---
 export const authResidentAPI = {
   // Resident Registration
   registerResident: (data) => apiClient.post('/residents/register', data),
   
-  // Supplier Registration (with files)
+  // FIX: Ensure this path matches how you mounted the router in server.js
+  sendOTP: (email) => apiClient.post('/residents/send-resident-otp', { email }),
+  
+  // ... rest of the code remains the same
   registerSupplier: (formData) => apiClient.post('/suppliers/register', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
 
-  // Admin Management
-  // Added this to fetch the full list for your directory
   getAllResidents: () => apiClient.get('/residents/all'), 
-
   getPendingResidents: () => apiClient.get('/residents/pending'),
-  
   approveResident: (id, actionData) => apiClient.put(`/residents/approve/${id}`, actionData),
-
-  // --- NEW: DELETE RESIDENT ---
-  // Matches the backend route: router.delete('/delete/:resident_id'...)
   deleteResident: (id) => apiClient.delete(`/residents/delete/${id}`),
 };
 // --- TENDER & PROCUREMENT MANAGEMENT ---

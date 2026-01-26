@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { UserPlus, Building, Mail, Lock, Phone, Users, ArrowRight, ShieldCheck } from 'lucide-react';
-import { authResidentAPI } from '../../api/auth.service'; // Importing the API service we built
+import React, { useState, useEffect } from 'react';
+import { UserPlus, Building, Mail, Lock, Phone, Users, ArrowRight, ShieldCheck, KeyRound } from 'lucide-react';
+import { authResidentAPI } from '../../api/auth.service';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-
 
 export default function RegisterResident() {
   const [formData, setFormData] = useState({
@@ -13,14 +12,49 @@ export default function RegisterResident() {
     block: '',
     flat_no: '',
     mobile_no: '',
-    family_members: 1
+    family_members: 1,
+    otp: '' // New field
   });
 
   const [loading, setLoading] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [timer, setTimer] = useState(0);
+
+  // Timer logic for Resend OTP
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSendOTP = async () => {
+    if (!formData.email) {
+      setMessage({ type: 'error', text: 'Please enter your email first.' });
+      return;
+    }
+
+    setOtpLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      await authResidentAPI.sendOTP(formData.email);
+      setMessage({ type: 'success', text: 'OTP sent to your email!' });
+      setTimer(60); // Start 60s cooldown
+    } catch (error) {
+      setMessage({ 
+        type: 'error', 
+        text: error.response?.data?.message || "Failed to send OTP." 
+      });
+    } finally {
+      setOtpLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -29,14 +63,17 @@ export default function RegisterResident() {
     setMessage({ type: '', text: '' });
 
     try {
-     const response = await authResidentAPI.registerResident(formData);
+      const response = await authResidentAPI.registerResident(formData);
       setMessage({ type: 'success', text: response.data.message });
-      // Clear form on success
-      setFormData({ full_name: '', email: '', password: '', block: '', flat_no: '', mobile_no: '', family_members: 1 });
+      // Reset form
+      setFormData({ 
+        full_name: '', email: '', password: '', block: '', 
+        flat_no: '', mobile_no: '', family_members: 1, otp: '' 
+      });
     } catch (error) {
       setMessage({ 
         type: 'error', 
-        text: error.response?.data?.message || "Registration failed. Please try again." 
+        text: error.response?.data?.message || "Registration failed." 
       });
     } finally {
       setLoading(false);
@@ -50,7 +87,7 @@ export default function RegisterResident() {
       <main className="flex-grow pt-32 pb-20 px-4">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8 items-center">
           
-          {/* Left Side: Branding & Info */}
+          {/* Left Side: Branding */}
           <div className="hidden md:block p-12 bg-yellow-400 rounded-[3rem] h-full relative overflow-hidden">
             <div className="relative z-10">
               <div className="bg-neutral-900 text-white w-fit px-4 py-1 rounded-full text-xs font-black uppercase mb-6">
@@ -74,14 +111,12 @@ export default function RegisterResident() {
                 ))}
               </ul>
             </div>
-            {/* Decorative Element */}
-            <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-white/20 rounded-full blur-3xl"></div>
           </div>
 
           {/* Right Side: Registration Form */}
           <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-xl border border-neutral-100">
             <h2 className="text-3xl font-black text-neutral-900 mb-2">Create Account</h2>
-            <p className="text-neutral-500 font-bold mb-8 text-sm">Fill in your details for Admin verification.</p>
+            <p className="text-neutral-500 font-bold mb-8 text-sm">Verify your email to continue.</p>
 
             {message.text && (
               <div className={`p-4 rounded-2xl mb-6 font-bold text-sm ${
@@ -102,19 +137,39 @@ export default function RegisterResident() {
                   />
                 </div>
 
+                {/* Email with Send OTP Button */}
+                <div className="col-span-2 flex gap-2">
+                  <div className="relative flex-grow">
+                    <Mail className="absolute left-4 top-4 w-5 h-5 text-neutral-400" />
+                    <input
+                      type="email" name="email" placeholder="Email Address" required
+                      className="w-full pl-12 pr-4 py-4 bg-neutral-50 border-none rounded-2xl focus:ring-2 focus:ring-yellow-400 font-bold"
+                      value={formData.email} onChange={handleChange}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSendOTP}
+                    disabled={otpLoading || timer > 0}
+                    className="px-6 bg-neutral-900 text-yellow-400 rounded-2xl font-black text-xs uppercase disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {timer > 0 ? `Resend in ${timer}s` : otpLoading ? "Sending..." : "Send OTP"}
+                  </button>
+                </div>
+
                 <div className="col-span-2 relative">
-                  <Mail className="absolute left-4 top-4 w-5 h-5 text-neutral-400" />
+                  <KeyRound className="absolute left-4 top-4 w-5 h-5 text-neutral-400" />
                   <input
-                    type="email" name="email" placeholder="Email Address" required
-                    className="w-full pl-12 pr-4 py-4 bg-neutral-50 border-none rounded-2xl focus:ring-2 focus:ring-yellow-400 font-bold"
-                    value={formData.email} onChange={handleChange}
+                    type="text" name="otp" placeholder="Enter 6-Digit OTP" required
+                    className="w-full pl-12 pr-4 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-2xl focus:ring-2 focus:ring-yellow-400 font-black text-center text-xl tracking-widest"
+                    value={formData.otp} onChange={handleChange} maxLength={6}
                   />
                 </div>
 
                 <div className="relative">
                   <Building className="absolute left-4 top-4 w-5 h-5 text-neutral-400" />
                   <input
-                    type="text" name="block" placeholder="Block (e.g. 4)" required
+                    type="text" name="block" placeholder="Block" required
                     className="w-full pl-12 pr-4 py-4 bg-neutral-50 border-none rounded-2xl focus:ring-2 focus:ring-yellow-400 font-bold"
                     value={formData.block} onChange={handleChange}
                   />
@@ -162,18 +217,13 @@ export default function RegisterResident() {
                 disabled={loading}
                 className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-black text-lg hover:bg-neutral-800 transition-all flex items-center justify-center gap-3 mt-4 disabled:opacity-50"
               >
-                {loading ? "Processing..." : "Submit Registration"} 
+                {loading ? "Processing..." : "Complete Registration"} 
                 {!loading && <ArrowRight className="w-5 h-5 text-yellow-400" />}
               </button>
             </form>
-            
-            <p className="text-center mt-6 text-neutral-400 font-bold text-xs uppercase tracking-widest">
-              Existing Resident? <a href="/login" className="text-neutral-900 hover:text-yellow-600 underline">Login Here</a>
-            </p>
           </div>
         </div>
       </main>
-
       <Footer />
     </div>
   );
