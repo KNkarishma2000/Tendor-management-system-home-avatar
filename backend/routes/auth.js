@@ -14,8 +14,8 @@ const {
   forgotPassword,
   resetPassword
 } = require('../controllers/authController');
-
-router.post('/register', register);
+const { protect, adminOnly } = require('../middleware/authMiddleware');
+router.post('/register', protect, adminOnly, register);
 router.post('/login', login);
 
 router.post('/register-supplier', upload.any(), registerSupplier);

@@ -28,47 +28,78 @@ async function sendChatEmail(toEmail, subject, content) {
 exports.sendUserQuery = async (req, res) => {
     try {
         const { message } = req.body;
+        
+        // 1. Validate middleware user
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ success: false, message: "Authentication failed" });
+        }
+
         const userId = req.user.id;
         const userRole = req.user.role;
-        const userEmail = req.user.email;
-        const userName = req.user.name || "User";
+        const userEmail = req.user.email || '';
+        let finalDisplayName = "User";
 
-        const { error } = await supabase
+        // 2. Role-Based Data Fetching Logic
+        if (userRole === 'ACCOUNTANT' || userRole === 'MC' || userRole === 'ADMIN') {
+            // No extra table exists. Use email or a generic name.
+            finalDisplayName = userEmail ? userEmail.split('@')[0] : userRole;
+        } 
+        else if (userRole === 'RESIDENT') {
+            const { data: profile } = await supabase
+                .from('residents')
+                .select('full_name')
+                .eq('user_id', userId)
+                .single();
+            finalDisplayName = profile?.full_name || userEmail.split('@')[0] || "Resident";
+        } 
+        else if (userRole === 'SUPPLIER') {
+            const { data: profile } = await supabase
+                .from('suppliers')
+                .select('company_name')
+                .eq('user_id', userId)
+                .single();
+            finalDisplayName = profile?.company_name || userEmail.split('@')[0] || "Supplier";
+        }
+
+        // 3. Insert message into chat_support
+        const { error: dbError } = await supabase
             .from('chat_support')
-            .insert([{ user_id: userId, sender_role: userRole, message: message }]);
+            .insert([{ 
+                user_id: userId, 
+                sender_role: userRole, 
+                message: message 
+            }]);
 
-        if (error) throw error;
+        if (dbError) throw dbError;
 
-        // --- Branded Email for Admin ---
+        // 4. Send Email Notification to Admin
         const adminEmail = process.env.ADMIN_EMAIL;
-        const adminHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 15px;">
-                <h2 style="color: #fbbf24;">🛎️ New Support Request</h2>
-                <p>A new query has been submitted via the portal.</p>
-                
-                <div style="background-color: #f3f4f6; padding: 15px; border-radius: 10px; margin: 20px 0;">
-                    <p style="margin: 5px 0;"><strong>From:</strong> ${userName}</p>
-                    <p style="margin: 5px 0;"><strong>Email:</strong> ${userEmail}</p>
-                    <p style="margin: 5px 0;"><strong>Role:</strong> <span style="background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${userRole}</span></p>
+        if (adminEmail) {
+            const adminHtml = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 15px;">
+                    <h2 style="color: #fbbf24;">🛎️ New Support Request</h2>
+                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 10px; margin: 20px 0;">
+                        <p style="margin: 5px 0;"><strong>From:</strong> ${finalDisplayName}</p>
+                        <p style="margin: 5px 0;"><strong>Role:</strong> <span style="background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${userRole}</span></p>
+                        <p style="margin: 5px 0;"><strong>Email:</strong> ${userEmail}</p>
+                    </div>
+                    <div style="border-left: 4px solid #fbbf24; padding-left: 15px; margin: 20px 0;">
+                        <p style="color: #1f2937; line-height: 1.6;">${message}</p>
+                    </div>
+                    <div style="text-align: center; margin-top: 30px;">
+                        <a href="${process.env.FRONTEND_URL}/admin/support" style="background-color: #fbbf24; color: #000; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">View in Dashboard</a>
+                    </div>
                 </div>
+            `;
 
-                <div style="border-left: 4px solid #fbbf24; padding-left: 15px; margin: 20px 0;">
-                    <strong style="color: #4b5563;">Message:</strong>
-                    <p style="color: #1f2937; line-height: 1.6;">${message}</p>
-                </div>
-
-                <div style="text-align: center; margin-top: 30px;">
-                    <a href="${process.env.FRONTEND_URL}/admin/support" style="background-color: #fbbf24; color: #000; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">Reply in Admin Dashboard</a>
-                </div>
-            </div>
-        `;
-
-        sendChatEmail(adminEmail, `[NEW QUERY] ${userRole}: ${userName}`, adminHtml)
-            .catch(e => console.error("Admin Notify Error:", e.message));
+            sendChatEmail(adminEmail, `[${userRole}] Message from ${finalDisplayName}`, adminHtml)
+                .catch(e => console.error("Admin Notify Error:", e.message));
+        }
 
         res.status(201).json({ success: true });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("Chat Controller Error:", error.message);
+        res.status(500).json({ success: false, message: "Error processing your request" });
     }
 };
 // 2. Admin Replies to a Query

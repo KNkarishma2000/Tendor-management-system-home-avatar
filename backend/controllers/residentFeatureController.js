@@ -1,6 +1,7 @@
 const supabase = require('../config/supabase');
 const nodemailer = require('nodemailer');
 // --- HELPER: Upload to Storage ---
+// --- HELPER: Upload to Storage ---
 const uploadBuffer = async (bucket, folder, file) => {
   const filePath = `${folder}/${Date.now()}_${file.originalname}`;
   const { data, error } = await supabase.storage
@@ -11,37 +12,46 @@ const uploadBuffer = async (bucket, folder, file) => {
     });
 
   if (error) throw error;
-  return data.path; // Returns the storage path
+  return data.path;
 };
 
-// --- 1. RESIDENT: POST A BLOG (Multiple Images) ---
+// --- HELPER: Get Public URL ---
+const getPublicUrl = (bucket, path) => {
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+};
+
+// --- 1. POST A BLOG (Admin & Resident) ---
 exports.createBlog = async (req, res) => {
   try {
     const { title, content } = req.body;
     const files = req.files;
+    const isAdmin = req.user.role === 'ADMIN';
 
-    // 1. Fetch resident ID AND Status
-    const { data: resident, error: resError } = await supabase
-      .from('residents')
-      .select('id, status') // Added status here
-      .eq('user_id', req.user.id)
-      .single();
+    let residentId = null;
+    let status = 'pending';
 
-    if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
+    if (isAdmin) {
+      status = 'approved'; // Admin posts are live instantly
+    } else {
+      const { data: resident, error: resError } = await supabase
+        .from('residents')
+        .select('id, status')
+        .eq('user_id', req.user.id)
+        .single();
 
-    // 2. BLOCK if not approved
-    if (resident.status !== 'APPROVED') {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Action restricted. Your account is still pending admin approval." 
-      });
+      if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
+      if (resident.status !== 'APPROVED') return res.status(403).json({ success: false, message: "Account pending approval." });
+      
+      residentId = resident.id;
     }
 
-    // 3. Handle File Uploads (Only runs if approved)
     let uploadedImagePaths = [];
     if (files && files.length > 0) {
       for (const file of files) {
-        const path = await uploadBuffer('resident-blogs', resident.id, file);
+        // Use user_id as folder name for admin if residentId is null
+        const folder = residentId || `admin_${req.user.id}`;
+        const path = await uploadBuffer('resident-blogs', folder, file);
         uploadedImagePaths.push(path);
       }
     }
@@ -49,141 +59,137 @@ exports.createBlog = async (req, res) => {
     const { error } = await supabase
       .from('resident_blogs')
       .insert([{ 
-        resident_id: resident.id, 
+        resident_id: residentId, 
         title, 
         content, 
         images: uploadedImagePaths, 
-        status: 'pending'
+        status: status 
       }]);
 
     if (error) throw error;
-    res.status(201).json({ success: true, message: "Blog submitted for approval!" });
+    res.status(201).json({ 
+      success: true, 
+      message: isAdmin ? "Blog published as Admin!" : "Blog submitted for approval!" 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-// --- 2. RESIDENT: LIST MARKETPLACE ITEM (Single Image) ---
-// --- 2. RESIDENT: LIST MARKETPLACE ITEM (Single Image) ---
+
+// --- 2. LIST MARKETPLACE ITEM (Admin & Resident) ---
 exports.listMarketplaceItem = async (req, res) => {
   try {
     const { item_name, description, price, category, contact_no } = req.body;
     const file = req.file;
+    const isAdmin = req.user.role === 'ADMIN';
 
-    // 1. Fetch profile and Status
-    const { data: resident, error: resError } = await supabase
-      .from('residents')
-      .select('id, status, mobile_no') // Added status here
-      .eq('user_id', req.user.id)
-      .single();
+    let residentId = null;
+    let status = isAdmin ? 'approved' : 'pending';
+    let finalContact = contact_no;
 
-    if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
+    if (!isAdmin) {
+      const { data: resident, error: resError } = await supabase
+        .from('residents')
+        .select('id, status, mobile_no')
+        .eq('user_id', req.user.id)
+        .single();
 
-    // 2. BLOCK if not approved
-    if (resident.status !== 'APPROVED') {
-      return res.status(403).json({ 
-        success: false, 
-        message: "You cannot list items for sale until your account is approved." 
-      });
+      if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
+      if (resident.status !== 'APPROVED') return res.status(403).json({ success: false, message: "Approval required." });
+      
+      residentId = resident.id;
+      finalContact = contact_no || resident.mobile_no;
     }
 
     let itemImagePath = null;
     if (file) {
-      itemImagePath = await uploadBuffer('marketplace-items', resident.id, file);
+      itemImagePath = await uploadBuffer('marketplace-items', residentId || 'admin', file);
     }
 
     const { error } = await supabase
       .from('marketplace_items')
       .insert([{ 
-        resident_id: resident.id, 
+        resident_id: residentId, 
         item_name, 
         description, 
         price: parseFloat(price),
         category: category || 'General',
-        contact_no: contact_no || resident.mobile_no,
+        contact_no: finalContact || 'Admin Office',
         image_path: itemImagePath, 
-        status: 'pending'
+        status: status
       }]);
 
     if (error) throw error;
-    res.status(201).json({ success: true, message: "Listing submitted!" });
+    res.status(201).json({ success: true, message: isAdmin ? "Item listed by Admin!" : "Listing submitted!" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-// --- 3. ADMIN: MODERATE CONTENT ---
-// --- 3. ADMIN: MODERATE CONTENT (Updated for String Status) ---
-// --- 3. ADMIN: MODERATE CONTENT (Updated to send Emails) ---
+
+// --- 3. UPLOAD TO GALLERY (Admin & Resident) ---
+exports.uploadToGallery = async (req, res) => {
+  try {
+    const { caption } = req.body;
+    const files = req.files;
+    const isAdmin = req.user.role === 'ADMIN';
+
+    let residentId = null;
+    let status = isAdmin ? 'approved' : 'pending';
+
+    if (!isAdmin) {
+      const { data: resident } = await supabase.from('residents').select('id, status').eq('user_id', req.user.id).single();
+      if (!resident || resident.status !== 'APPROVED') return res.status(403).json({ success: false, message: "Unauthorized" });
+      residentId = resident.id;
+    }
+
+    if (!files || files.length === 0) throw new Error("Upload photos first");
+
+    let insertData = [];
+    for (const file of files) {
+      const path = await uploadBuffer('resident-gallery', residentId || 'admin', file);
+      insertData.push({
+        resident_id: residentId,
+        image_path: path,
+        caption: caption || (isAdmin ? 'Admin Upload' : 'Community Photo'),
+        status: status
+      });
+    }
+
+    const { error } = await supabase.from('resident_gallery').insert(insertData);
+    if (error) throw error;
+    res.status(201).json({ success: true, message: isAdmin ? "Gallery updated!" : "Photos sent for approval!" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// --- 4. ADMIN MODERATION (Same as before) ---
 exports.moderateContent = async (req, res) => {
   try {
     const { id, type, status } = req.body; 
-    
-    const tableMap = {
-      'BLOG': 'resident_blogs',
-      'MARKETPLACE': 'marketplace_items',
-      'GALLERY': 'resident_gallery'
-    };
-
+    const tableMap = { 'BLOG': 'resident_blogs', 'MARKETPLACE': 'marketplace_items', 'GALLERY': 'resident_gallery' };
     const table = tableMap[type];
+    
     if (!table) throw new Error("Invalid content type");
-
     const statusString = status === true ? 'approved' : 'rejected';
 
-    // 1. Update the status first
-    const { error: updateError } = await supabase
-      .from(table)
-      .update({ status: statusString }) 
-      .eq('id', id);
-
+    const { error: updateError } = await supabase.from(table).update({ status: statusString }).eq('id', id);
     if (updateError) throw updateError;
 
-    // 2. Select columns based on the Type to avoid "Column does not exist" errors
-    let columnsToSelect = "resident_id";
-    if (type === 'BLOG') columnsToSelect += ", title";
-    if (type === 'MARKETPLACE') columnsToSelect += ", item_name";
-    if (type === 'GALLERY') columnsToSelect += ", caption";
-
-    // 3. Fetch Data + Join Residents + Join Users to get Email
-    const { data: content, error: fetchError } = await supabase
+    // Fetch user email to notify (Only if it wasn't an admin post)
+    const { data: content } = await supabase
       .from(table)
-      .select(`
-        ${columnsToSelect},
-        residents (
-          full_name,
-          users (email)
-        )
-      `)
+      .select(`resident_id, title, item_name, caption, residents(full_name, users(email))`)
       .eq('id', id)
       .single();
 
-    if (fetchError) {
-        console.error("❌ Fetch Error:", fetchError.message);
-        return res.status(200).json({ success: true, message: "Status updated, but email fetch failed." });
+    if (content?.residents?.users?.email) {
+        const title = content.title || content.item_name || content.caption || "Community Post";
+        await sendStatusEmail(content.residents.users.email, `Post ${statusString}`, content.residents.full_name, statusString.toUpperCase(), type);
     }
 
-    // 4. Extract details safely
-    const userEmail = content?.residents?.users?.email;
-    const residentName = content?.residents?.full_name || "Resident";
-    const postTitle = content.title || content.item_name || content.caption || "Community Post";
-
-    if (userEmail) {
-      console.log(`📧 Sending ${statusString} email to: ${userEmail}`);
-      
-      await sendStatusEmail(
-        userEmail,
-        `Update on your ${type} post`,
-        residentName,           // Title parameter in your function is used for "Hello [Name]"
-        statusString.toUpperCase(), 
-        type
-      );
-    }
-
-    res.status(200).json({ 
-      success: true, 
-      message: `${type} has been ${statusString} and user notified.` 
-    });
-
+    res.status(200).json({ success: true, message: `Content ${statusString} successfully.` });
   } catch (error) {
-    console.error("🔥 Moderation Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -270,53 +276,7 @@ exports.getPendingContent = async (req, res) => {
 };
 // --- 7. RESIDENT: UPLOAD TO GALLERY (General Photos) ---
 // --- 7. RESIDENT: UPLOAD TO GALLERY (Fixed) ---
-exports.uploadToGallery = async (req, res) => {
-  try {
-    const { caption } = req.body;
-    const files = req.files;
 
-    // 1. Fetch profile and Status
-    const { data: resident, error: resError } = await supabase
-      .from('residents')
-      .select('id, status') // Added status here
-      .eq('user_id', req.user.id)
-      .single();
-
-    if (resError || !resident) return res.status(404).json({ success: false, message: "Resident profile not found" });
-
-    // 2. BLOCK if not approved
-    if (resident.status !== 'APPROVED') {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Gallery uploads are restricted for pending accounts." 
-      });
-    }
-
-    if (!files || files.length === 0) {
-      return res.status(400).json({ success: false, message: "Please upload at least one photo" });
-    }
-
-    let uploadedGalleryPaths = [];
-    for (const file of files) {
-      const path = await uploadBuffer('resident-gallery', resident.id, file);
-      uploadedGalleryPaths.push(path);
-    }
-
-    const insertData = uploadedGalleryPaths.map(path => ({
-      resident_id: resident.id,
-      image_path: path,
-      caption: caption || 'Community Photo',
-      status: 'pending' 
-    }));
-
-    const { error } = await supabase.from('resident_gallery').insert(insertData);
-
-    if (error) throw error;
-    res.status(201).json({ success: true, message: "Photos sent for Admin approval!" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 // --- 8. VIEWING: APPROVED GALLERY PHOTOS ---
 exports.getApprovedGallery = async (req, res) => {
   try {
@@ -367,10 +327,7 @@ exports.getAllBlogs = async (req, res) => {
   }
 };
 // --- HELPER: Get Public URL ---
-const getPublicUrl = (bucket, path) => {
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return data.publicUrl;
-};
+
 
 // --- 1. RESIDENT VIEW: ALL GALLERY (All Statuses) ---
 exports.getResidentGallery = async (req, res) => {
@@ -599,3 +556,63 @@ async function sendStatusEmail(email, subject, title, status, type) {
 
   await transporter.sendMail(mailOptions);
 }
+// --- HELPER: Delete from Storage ---
+const deleteFromStorage = async (bucket, paths) => {
+  if (!paths || paths.length === 0) return;
+  const pathArray = Array.isArray(paths) ? paths : [paths];
+  const { error } = await supabase.storage.from(bucket).remove(pathArray);
+  if (error) console.error(`Storage deletion error [${bucket}]:`, error.message);
+};
+// --- DELETE CONTENT (Admin & Owner) ---
+exports.deleteContent = async (req, res) => {
+  try {
+    const { id, type } = req.body; // type: 'BLOG', 'MARKETPLACE', 'GALLERY'
+    const isAdmin = req.user.role === 'ADMIN';
+
+    const tableMap = { 
+      'BLOG': { table: 'resident_blogs', bucket: 'resident-blogs' }, 
+      'MARKETPLACE': { table: 'marketplace_items', bucket: 'marketplace-items' }, 
+      'GALLERY': { table: 'resident_gallery', bucket: 'resident-gallery' } 
+    };
+
+    const config = tableMap[type];
+    if (!config) return res.status(400).json({ success: false, message: "Invalid content type" });
+
+    // 1. Fetch the item to check ownership and get image paths
+    const { data: item, error: fetchError } = await supabase
+      .from(config.table)
+      .select('*, residents(user_id)')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !item) return res.status(404).json({ success: false, message: "Item not found" });
+
+    // 2. Security Check: Admin or Owner?
+    const isOwner = item.residents?.user_id === req.user.id;
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ success: false, message: "You don't have permission to delete this." });
+    }
+
+    // 3. Delete Files from Supabase Storage
+    if (type === 'BLOG' && item.images) {
+      await deleteFromStorage(config.bucket, item.images);
+    } else if (item.image_path) {
+      await deleteFromStorage(config.bucket, item.image_path);
+    }
+
+    // 4. Delete Record from Database
+    const { error: deleteError } = await supabase
+      .from(config.table)
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) throw deleteError;
+
+    res.status(200).json({ 
+      success: true, 
+      message: `${type.toLowerCase()} deleted successfully.` 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

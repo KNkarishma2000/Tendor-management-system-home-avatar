@@ -94,3 +94,130 @@ exports.registerSupplierProfile = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.updateSupplierProfile = async (req, res) => {
+  console.log("--- STARTING PROFILE UPDATE ---");
+  const userId = req.user.id;
+
+  try {
+    const { 
+      company_name, registered_address, pan, gstin, cin, 
+      contact_person_name, contact_phone, 
+      bank_account_no, ifsc_code, bank_name, categories 
+    } = req.body;
+
+    // 1. Get Supplier ID
+    const { data: supplier, error: sError } = await supabase
+      .from('suppliers')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (sError || !supplier) throw new Error("Supplier profile not found");
+    const supplierId = supplier.id;
+
+    // 2. Update Basic Profile
+    await supabase.from('suppliers').update({
+      company_name, registered_address, pan, gstin, cin,
+      contact_person_name, contact_phone,
+      status: 'PENDING' 
+    }).eq('id', supplierId);
+
+    // 3. Handle File Uploads & Document Table
+    let cancelledChequePath = null;
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const filePath = `${supplierId}/${Date.now()}_${file.fieldname}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('supplier-docs')
+          .upload(filePath, file.buffer, { contentType: file.mimetype });
+
+        if (!uploadError) {
+          const docType = file.fieldname.toUpperCase(); // Ensure this matches DB Enum exactly
+          
+          if (file.fieldname === 'cancelled_cheque') cancelledChequePath = uploadData.path;
+
+          await supabase.from('supplier_documents').upsert({
+            supplier_id: supplierId,
+            document_type: docType,
+            file_path: uploadData.path,
+            updated_at: new Date()
+          }, { onConflict: 'supplier_id, document_type' });
+        }
+      }
+    }
+
+    // 4. Update Financials (Explicit check to ensure update happens)
+    const financialData = {
+      supplier_id: supplierId,
+      bank_account_no,
+      ifsc_code,
+      bank_name,
+      ...(cancelledChequePath && { cancelled_cheque_file: cancelledChequePath })
+    };
+
+    const { error: finError } = await supabase
+      .from('supplier_financials')
+      .upsert(financialData, { onConflict: 'supplier_id' });
+
+    if (finError) {
+        console.error("❌ Financials Update Error:", finError.message);
+        throw new Error("Failed to update bank details: " + finError.message);
+    }
+
+    // 5. Update Categories
+    if (categories) {
+      const catArray = typeof categories === 'string' ? JSON.parse(categories) : categories;
+      await supabase.from('supplier_categories').delete().eq('supplier_id', supplierId);
+      if (catArray.length > 0) {
+        const inserts = catArray.map(cat => ({ supplier_id: supplierId, category_name: cat }));
+        await supabase.from('supplier_categories').insert(inserts);
+      }
+    }
+
+    return res.status(200).json({ success: true, message: "Profile and Bank Details updated successfully!" });
+
+  } catch (error) {
+    console.error("❌ UPDATE FAILURE:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+exports.getSupplierProfile = async (req, res) => {
+  console.log("--- FETCHING SUPPLIER PROFILE ---");
+  const userId = req.user.id; // From auth middleware
+
+  try {
+    // 1. Get basic supplier info
+    const { data: supplier, error: sError } = await supabase
+      .from('suppliers')
+      .select(`
+        *,
+        supplier_financials (*),
+        supplier_categories (category_name),
+        supplier_documents (document_type, file_path)
+      `)
+      .eq('user_id', userId)
+      .single();
+
+    if (sError || !supplier) {
+      return res.status(404).json({ success: false, message: "Profile not found" });
+    }
+
+    // 2. Format the response for easier use in React
+    const formattedProfile = {
+      ...supplier,
+    financials: supplier.supplier_financials || {},
+
+      categories: supplier.supplier_categories.map(c => c.category_name),
+      documents: supplier.supplier_documents
+    };
+
+    return res.status(200).json({ 
+      success: true, 
+      data: formattedProfile 
+    });
+
+  } catch (error) {
+    console.error("❌ FETCH FAILURE:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

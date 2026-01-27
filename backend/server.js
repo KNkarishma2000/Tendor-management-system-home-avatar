@@ -53,14 +53,8 @@ const app = express();
 // 1. Middleware
 // =======================
 app.use(helmet()); // Security headers
-app.use(cors(corsOptions)); 
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    cors(corsOptions)(req, res, next);
-  } else {
-    next();
-  }
-});
+app.use(cors(corsOptions));
+
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();

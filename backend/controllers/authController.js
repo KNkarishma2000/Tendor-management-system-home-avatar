@@ -5,40 +5,148 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
 // 1. REGISTER USER
+// backend/controllers/authController.js
+
+// backend/controllers/authController.js
+
 exports.register = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    // 1. Destructure all possible fields from the request body
+    const { 
+      email, password, role, otp,
+      // Resident specific fields
+      full_name, block, flat_no, mobile_no, family_members,
+      // Supplier specific fields (Extended for Admin use)
+      company_name, registered_address, contact_person_name, contact_phone,
+      pan, gstin, cin, bank_account_no, ifsc_code, bank_name, categories
+    } = req.body;
 
-    // Hash the password
+    // 2. Identify if this is an Admin creating the user
+    const isAdminAction = req.user && req.user.role === 'ADMIN';
+
+    // 3. Security: Only Admins can create staff roles
+    const staffRoles = ['ACCOUNTANT', 'MC', 'ADMIN'];
+    if (staffRoles.includes(role) && !isAdminAction) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Access Denied: Only administrators can create staff or MC accounts." 
+      });
+    }
+
+    // 4. OTP Verification (Skipped for Admins)
+    if (!isAdminAction && (role === 'RESIDENT' || role === 'SUPPLIER')) {
+      if (!otp) return res.status(400).json({ success: false, message: "OTP is required" });
+
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('email_verifications')
+        .select('*')
+        .eq('email', email)
+        .eq('otp', otp)
+        .single();
+
+      if (verifyError || !verifyData || new Date() > new Date(verifyData.expires_at)) {
+        return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+      }
+    }
+
+    // 5. Hash Password & Create User
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Insert into Supabase 'users' table
-    const { data, error } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('users')
-      .insert([
-        { 
-          email, 
+      .insert([{ 
+          email: email.toLowerCase().trim(), 
           password_hash: passwordHash, 
-          role: role || 'SUPPLIER', // Default to Supplier
-          is_active: true,
-          is_verified: false
-        }
-      ])
+          role: role || 'RESIDENT', 
+          is_active: true, 
+          is_verified: true 
+      }])
       .select();
 
-    if (error) {
-        if (error.code === '23505') return res.status(400).json({ message: "Email already exists" });
-        throw error;
+    if (userError) {
+      if (userError.code === '23505') return res.status(400).json({ success: false, message: "Email already exists." });
+      throw userError;
+    }
+
+    const userId = userData[0].id;
+    let profileError = null;
+
+    // 6. Branching Logic for Profile Tables
+   if (role === 'RESIDENT' || role === 'MC') { 
+  const { error } = await supabase.from('residents').insert([{ 
+    user_id: userId, 
+    full_name, 
+    block, 
+    flat_no, 
+    mobile_no, 
+    family_members: parseInt(family_members) || 1,
+    // MC members created by Admin should be APPROVED by default
+    status: (role === 'MC' || isAdminAction) ? 'APPROVED' : 'PENDING'
+  }]);
+  profileError = error;
+}
+    else if (role === 'SUPPLIER') {
+      // Step A: Create Supplier Profile
+      const { data: supplierData, error: sError } = await supabase
+        .from('suppliers')
+        .insert([{ 
+          user_id: userId, 
+          company_name, 
+          contact_person_name, 
+          contact_phone, 
+          registered_address,
+          pan,
+          gstin,
+          cin,
+          status: isAdminAction ? 'APPROVED' : 'PENDING'
+        }])
+        .select();
+
+      if (sError) {
+        profileError = sError;
+      } else {
+        const supplierId = supplierData[0].id;
+
+        // Step B: Insert Financials (Bank Info)
+        if (bank_account_no) {
+          await supabase.from('supplier_financials').insert([{
+            supplier_id: supplierId,
+            bank_account_no,
+            ifsc_code,
+            bank_name
+          }]);
+        }
+
+        // Step C: Handle Categories (if provided)
+        if (categories && Array.isArray(categories)) {
+          const catInserts = categories.map(cat => ({ supplier_id: supplierId, category_name: cat }));
+          await supabase.from('supplier_categories').insert(catInserts);
+        }
+      }
+    }
+
+    // 7. Rollback User if Profile creation fails
+    if (profileError) {
+      await supabase.from('users').delete().eq('id', userId);
+      return res.status(500).json({ success: false, message: `Profile creation failed: ${profileError.message}` });
+    }
+
+    // 8. Cleanup OTP for non-admin registrations
+    if (!isAdminAction && (role === 'RESIDENT' || role === 'SUPPLIER')) {
+      await supabase.from('email_verifications').delete().eq('email', email);
     }
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
-      user: { id: data[0].id, email: data[0].email, role: data[0].role }
+      message: isAdminAction 
+        ? `${role} account and profile created successfully by Admin.` 
+        : "Registration successful! Please wait for Admin approval."
     });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Registration Error:", error.message);
+    res.status(500).json({ success: false, message: "An internal error occurred." });
   }
 };
 
