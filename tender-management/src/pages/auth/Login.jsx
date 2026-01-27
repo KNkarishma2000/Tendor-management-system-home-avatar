@@ -57,10 +57,24 @@ const handleLogin = async (e) => {
       // showSuccess(isAdminMode ? "Access Granted!" : "Welcome Home!");
       
       // 2. Set storage
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('userEmail', data.user.email);
-      localStorage.setItem('userRole', data.user.role);
-      localStorage.setItem('userStatus', data.user.status || 'PENDING');
+  // Inside handleLogin after: if (data.success) {
+
+// 1. Set standard storage for all roles
+localStorage.setItem('accessToken', data.accessToken);
+localStorage.setItem('userEmail', data.user.email);
+localStorage.setItem('userRole', data.user.role);
+localStorage.setItem('userStatus', data.user.status || 'PENDING');
+
+// 2. CRITICAL CHANGE: Always store the internal Auth UUID
+// This is the 'id' column from your Supabase 'users' table (seen in your screenshot)
+localStorage.setItem('internal_user_id', data.user.id);
+
+// 3. Store role-specific IDs if they exist
+if (data.user.role === 'RESIDENT') {
+    localStorage.setItem('resident_id', data.user.resident_id);
+} else if (data.user.role === 'SUPPLIER') {
+    localStorage.setItem('profile_id', data.user.profile_id);
+}
 
       // 3. Redirect
       setTimeout(() => {

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://palegreen-rhinoceros-358698.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'http://localhost:5000/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -53,7 +53,7 @@ export const authAPI = {
  
   
   // Register basic user
-  register: (userData) => apiClient.post('/auth/register', userData),
+register: (formData) => apiClient.post('/auth/register', formData),
   
   // Register Supplier (Full Profile)
   // Correct (Handles files and multi-table data)
@@ -120,6 +120,7 @@ export const communityAPI = {
   createMarketplaceItem: (formData) => apiClient.post('/community/marketplace', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  deleteContent: (data) => apiClient.delete('/community/delete-content', { data }),
   deleteCarnival: (id) => apiClient.delete(`/community/carnivals/${id}`),
   createNotice: (data) => apiClient.post('/community/notices', data),
   getMySubmissions: () => apiClient.get('/community/my-submissions'),
@@ -303,6 +304,17 @@ export const financeAPI = {
     
   getZohoVsElemensorHistory: () => 
     apiClient.get('/drive/zoho-elemensor-history'), // Matches new rout
+};
+// --- SUPPLIER SELF-SERVICE API ---
+export const supplierAPI = {
+  // Fetch own profile details for the "Edit Profile" page
+  getProfile: () => apiClient.get('/suppliers/me'),
+
+  // Update profile details (Handles text fields and file uploads)
+  // formData should be a FormData() object
+  updateProfile: (formData) => apiClient.put('/suppliers/update-profile', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 export default apiClient;
 

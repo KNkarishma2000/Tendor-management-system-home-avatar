@@ -47,6 +47,8 @@ import InvoiceExtractor from './pages/accountant/InvoiceExtractor';
 import Reconciliation from './pages/accountant/Reconciliation';
 import BankReconciliation from './pages/accountant/BankReconciliation';
 import ZohoVsElemensor from './pages/accountant/ZohoVsElemensor';
+import AdminRegisterUser from './pages/admin/Register';
+import SupplierProfile from './pages/tenders/SupplierProfile';
 
 
 
@@ -94,6 +96,10 @@ function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
          <Route path="carnivals/:id" element={<CarnivalAdminDetails />} />
          <Route path="support" element={<AdminSupportInbox />} />
+           <Route path="blogs" element={<ResidentBlogs />} />
+            <Route path="gallery" element={<ResidentGallery />} />
+              <Route path="marketplace" element={<CreateListing />} />
+         <Route path="register" element={<AdminRegisterUser />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="carnivals" element={<Carnivals />} />
         <Route path="residents" element={<ResidentManagement />} /> 
@@ -128,6 +134,7 @@ function App() {
     <Route path="carnival" element={<SupplierCarnivalList />} />
      <Route path="bids" element={<BidSubmissionPage />} />
       <Route path="carnival/:id" element={<CarnivalBidSubmissionPage />} />
+            <Route path="profile" element={<SupplierProfile />} />
     {/* This is the key connection point */}
     <Route path="tender/:id" element={<SupplierTenderPortal />} />
 </Route>

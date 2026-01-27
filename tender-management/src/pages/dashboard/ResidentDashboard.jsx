@@ -129,7 +129,7 @@ export default function ResidentDashboard() {
         <QuickCard 
           icon={Tent} label="Events" value={stats.upcomingEvents} 
           sub="Upcoming Fun" bg="bg-yellow-50" iconColor="text-yellow-600"
-          onClick={() => navigate('/dashboard/carnivals')}
+          onClick={() => navigate('/carnivals')}
         />
       </div>
 

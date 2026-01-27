@@ -1,17 +1,22 @@
 import React from 'react';
-import { LayoutDashboard, Users, Tent,MessageSquare, Bell, FileText, Settings, LogOut, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users,UserCircle, Tent,MessageSquare,User2, Bell, FileText, Settings, LogOut, Briefcase } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authAPI } from '../../../api/auth.service'; // Ensure this path matches your file structure
 
 const MENU_ITEMS = {
   ADMIN: [
     { label: 'Overview', icon: LayoutDashboard, path: '/admin' },
+    { label: 'Register User', icon: User2, path: '/admin/register' },
     { label: 'Residents', icon: Users, path: '/admin/residents' },
     { label: 'Carnivals', icon: Tent, path: '/admin/carnivals' },
     { label: 'Notices', icon: Bell, path: '/admin/notices' },
     { label: 'Tenders', icon: FileText, path: '/admin/tenders' },
     { label: 'Suppliers', icon: FileText, path: '/admin/suppliers' },
+     { label: 'Marketplace', icon: Briefcase, path: '/admin/marketplace' },
+    { label: 'Events', icon: Tent, path: '/admin/blogs' },
+     { label: 'Gallery', icon: Tent, path: '/admin/gallery' },
     { label: 'Support Queries', icon: MessageSquare, path: '/admin/support' },
+      
   ],
   // Add these to MENU_ITEMS in your Sidebar component
 ACCOUNTANT: [
@@ -101,7 +106,21 @@ const roleHeadings = {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-neutral-800">
+      <div className=" border-t border-neutral-800">
+        <div className="p-4 border-t border-neutral-800 space-y-2">
+        {role === 'SUPPLIER' && (
+          <Link
+            to="/supplier/profile"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
+              location.pathname === '/supplier/profile'
+                ? ' text-white'
+                : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+            }`}
+          >
+            <UserCircle size={20} /> My Profile
+          </Link>
+        )}
+        </div>
         <button 
           onClick={handleLogout}
           className="flex items-center gap-3 text-red-400 font-bold px-4 py-3 hover:bg-red-500/10 w-full rounded-xl transition-all"

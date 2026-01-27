@@ -38,39 +38,32 @@ const handleLogin = async (e) => {
       password: formData.password 
     });
 
-    // Extract the data from the response
     const { accessToken, user } = response.data;
 
-    // 1. Check if the user is actually a supplier
     if (user.role !== 'SUPPLIER') {
       setError("Access denied. This portal is for Suppliers only.");
       setLoading(false);
       return;
     }
 
-    // 2. Store credentials
+    // --- ESSENTIAL STORAGE FOR CHAT & AUTH ---
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('userRole', user.role);
-    
-    // IMPORTANT: Use user.profile_id (from your backend) or user.id
-    // Your backend sends 'profile_id', so we use that for Bidding tables
-    localStorage.setItem('userId', user.profile_id); 
-    
-    // ... inside handleLogin after extracting accessToken, user
-localStorage.setItem('userEmail', user.email); // Store the actual login email
-localStorage.setItem('userRole', user.role);
-localStorage.setItem('userStatus', user.status || 'PENDING');
-    
-    // FIX: Use user.status (this was causing the crash)
-    localStorage.setItem('userStatus', user.status || 'PENDING'); 
-    
-    localStorage.setItem('internal_user_id', user.id);
+    localStorage.setItem('userEmail', user.email);
+    localStorage.setItem('userStatus', user.status || 'PENDING');
 
-    // 3. Navigate to portal
+    // 1. This is the UUID from the 'users' table (Needed for the Chat Controller)
+    localStorage.setItem('internal_user_id', user.id); 
+
+    // 2. This is the ID from the 'suppliers' table (Needed for Tenders/Bids)
+    localStorage.setItem('profile_id', user.profile_id); 
+    
+    // Fallback if your code specifically looks for 'userId' elsewhere
+    localStorage.setItem('userId', user.profile_id); 
+
     navigate('/supplier/portal');
   } catch (err) {
-    console.error("Login error detail:", err);
-    setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+    setError(err.response?.data?.message || "Login failed.");
   } finally {
     setLoading(false);
   }
