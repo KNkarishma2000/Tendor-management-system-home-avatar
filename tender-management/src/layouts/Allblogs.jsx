@@ -84,9 +84,13 @@ const AllBlogs = () => {
                 <h3 className="text-2xl font-black text-neutral-900 leading-tight mb-2 group-hover:text-yellow-500 transition-colors">
                   {blog.title}
                 </h3>
-                <p className="text-neutral-500 text-sm line-clamp-2 mb-6 font-medium">
-                  {blog.content.replace(/<[^>]*>?/gm, '')}
-                </p>
+               <p className="text-neutral-500 text-sm line-clamp-2 mb-6 font-medium">
+  {blog.content
+    .replace(/<[^>]*>?/gm, '')       // Remove HTML tags
+    .replace(/&nbsp;/g, ' ')        // Replace non-breaking spaces with normal spaces
+    .replace(/&amp;/g, '&')         // Fix ampersands
+    .trim()}
+</p>
                 <div className="flex items-center gap-2 text-neutral-900 font-black text-xs uppercase tracking-widest group-hover:gap-4 transition-all">
                   Read Story <ArrowRight size={16} className="text-yellow-400" />
                 </div>
