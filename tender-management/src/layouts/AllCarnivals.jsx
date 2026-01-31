@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { communityAPI } from '../api/auth.service';
+import { communityAPI } from '../api/auth.service'; // Import your service
 import Header from '../pages/components/Header';
 import Footer from '../pages/components/Footer';
-import { Tent, Ticket, Calendar, MapPin, Search, ArrowRight, Sparkles } from 'lucide-react';
-
-const PLACEHOLDER = "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80";
+import { Search, ArrowRight, Tent, Calendar, Sparkles } from 'lucide-react';
 
 const AllCarnivals = () => {
   const [carnivals, setCarnivals] = useState([]);
@@ -17,6 +15,7 @@ const AllCarnivals = () => {
     const fetchCarnivals = async () => {
       try {
         setLoading(true);
+        // Using the API from your service file
         const res = await communityAPI.getCarnivals();
         setCarnivals(res?.data?.data || []);
       } catch (error) {
@@ -33,90 +32,117 @@ const AllCarnivals = () => {
   );
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-neutral-50 font-black text-xl italic uppercase animate-pulse">
-      Setting the Stage...
+    <div className="h-screen flex items-center justify-center font-serif italic text-[#a88d5e] animate-pulse tracking-widest bg-[#fbfbfb]">
+      Orchestrating the Festivities...
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-[#fbfbfb]">
       <Header activePage="carnivals" />
 
-      {/* HERO SECTION */}
-      <section className="pt-40 pb-20 px-6 bg-neutral-900 rounded-b-[4rem]">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-            <div className="space-y-4">
-              <span className="inline-flex items-center gap-2 bg-yellow-400 text-neutral-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-                <Sparkles size={12} /> Community Events
-              </span>
-              <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-none">
-                THE FESTIVAL <br/> <span className="text-yellow-400 italic">CALENDAR.</span>
-              </h1>
-            </div>
-            
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-500" size={20} />
-              <input 
-                type="text" 
-                placeholder="Search events..." 
-                className="w-full bg-white/5 border border-white/10 rounded-full py-5 pl-16 pr-8 text-white font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all"
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+      {/* LUXURY HERO SECTION */}
+      <section className="pt-48 pb-24 px-6 bg-[#1f1b16] relative overflow-hidden">
+        {/* Decorative background element */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#a88d5e]/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <Sparkles size={16} className="text-[#a88d5e]" />
+            <span className="text-[#a88d5e] font-bold uppercase text-[10px] tracking-[0.5em]">
+              The HomeAvatar Socials
+            </span>
+            <Sparkles size={16} className="text-[#a88d5e]" />
+          </div>
+          
+          <h1 className="text-5xl md:text-8xl font-serif italic text-white leading-tight mb-8">
+            The Carnival <br/> <span className="text-[#a88d5e]">Calendar</span>
+          </h1>
+          
+          <div className="w-20 h-[1px] bg-[#a88d5e]/50 mx-auto mb-12"></div>
+          
+          {/* Minimalist Search */}
+          <div className="relative max-w-md mx-auto">
+            <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-[#a88d5e]/60" size={18} />
+            <input 
+              type="text" 
+              placeholder="FIND AN EVENT..." 
+              className="w-full bg-transparent border-b border-white/10 py-4 pl-10 pr-4 text-white font-serif italic focus:outline-none focus:border-[#a88d5e] transition-all placeholder:text-gray-600 text-lg"
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
       </section>
 
-      {/* GRID SECTION */}
-      <main className="max-w-7xl mx-auto px-6 py-20">
+      {/* CARNIVAL FEED */}
+      <main className="max-w-6xl mx-auto px-6 py-24">
         {filteredCarnivals.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 gap-16">
             {filteredCarnivals.map((event) => (
-              <div key={event.id} className="group bg-white rounded-[3.5rem] overflow-hidden border border-neutral-100 shadow-sm hover:shadow-2xl transition-all duration-500">
-                <div className="relative h-72 overflow-hidden">
+              <div 
+                key={event.id} 
+                className="group flex flex-col lg:flex-row bg-white border border-gray-100 transition-all duration-700 hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)]"
+              >
+                {/* Visual Side */}
+                <div className="lg:w-2/5 relative overflow-hidden h-72 lg:h-auto bg-[#1f1b16]">
                   <img 
-                    src={PLACEHOLDER} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                    src={event.banner_image || "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80"} 
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-80 group-hover:opacity-100" 
                     alt={event.event_title} 
                   />
-                  <div className="absolute top-6 left-6 bg-white rounded-2xl px-4 py-3 text-center shadow-lg">
-                    <span className="block text-2xl font-black text-neutral-900 leading-none">
+                  <div className="absolute top-0 left-0 bg-[#a88d5e] text-white p-6">
+                    <span className="block text-3xl font-serif italic leading-none">
                       {new Date(event.event_date).getDate()}
                     </span>
-                    <span className="text-[10px] font-black uppercase text-neutral-400">
+                    <span className="text-[10px] font-bold uppercase tracking-widest border-t border-white/30 pt-2 mt-2 block">
                       {new Date(event.event_date).toLocaleString('default', { month: 'short' })}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-10 space-y-6">
-                  <h3 className="text-3xl font-black text-neutral-900 tracking-tight leading-none">
+                {/* Content Side */}
+                <div className="lg:w-3/5 p-12 flex flex-col justify-center">
+                  <div className="flex items-center gap-4 mb-6">
+                     <span className="h-[1px] w-8 bg-[#a88d5e]"></span>
+                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#a88d5e]">Upcoming Event</span>
+                  </div>
+
+                  <h3 className="text-4xl md:text-5xl font-serif italic text-[#1f1b16] mb-6 leading-tight">
                     {event.event_title}
                   </h3>
 
-                  <div className="flex flex-wrap gap-3">
-                    <span className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl text-xs font-bold text-neutral-600">
-                      <Tent size={14} className="text-yellow-500" /> {event.total_stalls} Stalls
-                    </span>
-                    <span className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl text-xs font-bold text-neutral-600">
-                      <Ticket size={14} className="text-yellow-500" /> From ₹{event.base_stall_price}
-                    </span>
+                  <div className="grid grid-cols-2 gap-8 mb-10 border-y border-gray-50 py-6">
+                    <div className="flex items-center gap-3">
+                      <Tent size={18} className="text-[#a88d5e]" />
+                      <div>
+                        <p className="text-[9px] text-gray-400 uppercase font-bold tracking-tighter">Availability</p>
+                        <p className="text-sm font-serif">{event.total_stalls} Curated Stalls</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Calendar size={18} className="text-[#a88d5e]" />
+                      <div>
+                        <p className="text-[9px] text-gray-400 uppercase font-bold tracking-tighter">Participation</p>
+                        <p className="text-sm font-serif italic">Starts ₹{event.base_stall_price}</p>
+                      </div>
+                    </div>
                   </div>
 
                   <button 
-                    onClick={() => navigate(`/resident-register`)}
-                    className="w-full bg-neutral-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 group-hover:bg-yellow-400 group-hover:text-neutral-900 transition-colors"
+                    onClick={() => navigate(`/supplier-register`)}
+                    className="w-fit group/btn flex items-center gap-6 text-[11px] font-bold uppercase tracking-[0.4em] text-[#1f1b16] hover:text-[#a88d5e] transition-all"
                   >
-                    Host a Stall <ArrowRight size={16} />
+                    HOST A STALL 
+                    <span className="w-12 h-[1px] bg-[#1f1b16] group-hover/btn:w-20 group-hover/btn:bg-[#a88d5e] transition-all duration-500"></span>
+                    <ArrowRight size={14} className="group-hover/btn:translate-x-2 transition-transform duration-500" />
                   </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-40">
-            <h2 className="text-4xl font-black text-neutral-200 uppercase italic">No Carnivals Found</h2>
+          <div className="text-center py-40 border-t border-gray-100">
+            <h2 className="text-2xl font-serif italic text-gray-300 tracking-widest uppercase">No festivities currently scheduled</h2>
           </div>
         )}
       </main>

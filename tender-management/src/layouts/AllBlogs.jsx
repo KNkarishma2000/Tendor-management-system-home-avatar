@@ -71,9 +71,12 @@ const AllBlogs = () => {
                     {blog.title}
                   </h3>
 
-                  <p className="text-gray-500 text-sm mb-6 line-clamp-3 leading-relaxed">
-                    {blog.content.replace(/<[^>]*>?/gm, '')}
-                  </p>
+                 <p className="text-gray-500 text-sm mb-6 line-clamp-3 leading-relaxed">
+  {blog.content
+    .replace(/<[^>]*>?/gm, '') // Strips HTML tags
+    .replace(/&nbsp;/g, ' ')  // Converts HTML space entities to normal spaces
+    .trim()}
+</p>
 
                   {/* Footer Action */}
                   <div className="mt-auto flex items-center gap-2 text-[#a88d5e] font-bold text-xs uppercase tracking-widest pt-4 border-t border-gray-50">

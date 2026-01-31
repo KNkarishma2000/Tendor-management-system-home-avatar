@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { communityAPI } from '../api/auth.service';
-import Header from '../pages/components/Header';
+import Header from '../pages/components/Header'; // Fixed path based on your Header file
 import Footer from '../pages/components/Footer';
-import { Bell, Calendar, ChevronRight, Search, Megaphone, X, AlertCircle, Info, Users, PartyPopper } from 'lucide-react';
+import { Calendar, ChevronRight, X, Search, Sparkles } from 'lucide-react';
 
-// Configuration to map Backend Keywords to Frontend Icons and Labels
 const TYPE_MAP = {
-  ALERT: { label: 'Alert', icon: AlertCircle, color: 'bg-red-100 text-red-600', border: 'border-red-200' },
-  INFO: { label: 'Info', icon: Info, color: 'bg-blue-100 text-blue-600', border: 'border-blue-200' },
-  MEETING: { label: 'Meeting', icon: Users, color: 'bg-purple-100 text-purple-600', border: 'border-purple-200' },
-  EVENT: { label: 'Event', icon: PartyPopper, color: 'bg-orange-100 text-orange-600', border: 'border-orange-200' }
+  ALERT: { label: 'Urgent', color: 'text-red-500 bg-red-50/50' },
+  INFO: { label: 'Briefing', color: 'text-[#a88d5e] bg-[#a88d5e]/5' },
+  MEETING: { label: 'Assembly', color: 'text-purple-500 bg-purple-50/50' },
+  EVENT: { label: 'Social', color: 'text-orange-500 bg-orange-50/50' }
 };
 
 const Notices = () => {
@@ -23,7 +22,6 @@ const Notices = () => {
       try {
         setLoading(true);
         const res = await communityAPI.getNotices();
-        // Standardizing data access
         const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
         setNotices(data);
       } catch (error) {
@@ -35,145 +33,146 @@ const Notices = () => {
     fetchNotices();
   }, []);
 
-  // Filter Logic using the exact keywords from your Admin panel
   const filteredNotices = filter === 'All' 
     ? notices 
     : notices.filter(n => n.notice_type === filter.toUpperCase());
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-neutral-500 font-bold">Loading Bulletin Board...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center font-serif italic text-[#a88d5e] animate-pulse tracking-widest bg-[#fbfbfb]">
+      Gathering Communications...
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] font-sans">
+    <div className="min-h-screen bg-[#fbfbfb]">
       <Header />
       
-      <main className="pt-32 pb-20 px-4 max-w-5xl mx-auto">
-        {/* Header Section */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-yellow-400 p-2 rounded-xl">
-              <Megaphone className="w-6 h-6 text-neutral-900" />
-            </div>
-            <span className="font-black uppercase tracking-[0.2em] text-xs text-neutral-400">Bulletin Board</span>
+      {/* MOBILE OPTIMIZED HERO */}
+      <section className="pt-32 pb-12 md:pt-48 md:pb-20 px-6 bg-[#1f1b16] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 md:w-96 md:h-96 bg-[#a88d5e]/5 rounded-full blur-3xl"></div>
+        
+        <div className="max-w-5xl mx-auto text-center relative z-10">
+          <div className="flex items-center justify-center gap-2 md:gap-3 mb-4 md:mb-6">
+            <Sparkles size={14} className="text-[#a88d5e]" />
+            <span className="text-[#a88d5e] font-bold uppercase text-[8px] md:text-[10px] tracking-[0.3em] md:tracking-[0.5em]">
+              The HomeAvatar Gazette
+            </span>
+            <Sparkles size={14} className="text-[#a88d5e]" />
           </div>
-          <h1 className="text-5xl md:text-6xl font-black text-neutral-900 tracking-tighter">
-            Community <br/> <span className="text-yellow-500">Notices.</span>
+          
+          <h1 className="text-3xl md:text-7xl font-serif italic text-white leading-tight mb-6 md:mb-8">
+            Community <span className="text-[#a88d5e]">Bulletins</span>
           </h1>
-        </div>
+          
+          <div className="w-12 md:w-16 h-[1px] bg-[#a88d5e]/40 mx-auto mb-8 md:mb-12"></div>
 
-        {/* Filters - Updated to match ALERT, INFO, MEETING, EVENT */}
-        <div className="flex gap-2 mb-10 overflow-x-auto pb-2 scrollbar-hide">
-          {['All', 'Alert', 'Info', 'Meeting', 'Event'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setFilter(tab)}
-              className={`px-6 py-2.5 rounded-full text-sm font-black transition-all border whitespace-nowrap ${
-                filter === tab 
-                ? 'bg-neutral-900 text-white border-neutral-900 shadow-lg scale-105' 
-                : 'bg-white text-neutral-500 border-neutral-100 hover:border-neutral-300'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+          {/* Scrollable Filters for Mobile */}
+          <div className="flex justify-start md:justify-center gap-6 overflow-x-auto pb-4 scrollbar-hide px-2">
+            {['All', 'Alert', 'Info', 'Meeting', 'Event'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setFilter(tab)}
+                className={`text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative pb-2 whitespace-nowrap ${
+                  filter === tab ? 'text-[#a88d5e]' : 'text-gray-500 hover:text-white'
+                }`}
+              >
+                {tab}
+                {filter === tab && (
+                  <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[#a88d5e]"></div>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
+      </section>
 
-        {/* Notice List */}
-        <div className="space-y-4">
+      {/* RESPONSIVE NOTICE LISTING */}
+      <main className="max-w-5xl mx-auto px-4 md:px-6 py-12 md:py-24">
+        <div className="grid grid-cols-1 gap-4 md:gap-8">
           {filteredNotices.length > 0 ? (
             filteredNotices.map((notice) => {
               const config = TYPE_MAP[notice.notice_type] || TYPE_MAP.INFO;
-              const Icon = config.icon;
-
+              
               return (
                 <div 
                   key={notice.id} 
                   onClick={() => setSelectedNotice(notice)}
-                  className="group bg-white border border-neutral-100 p-6 md:p-8 rounded-[2.5rem] hover:shadow-2xl hover:shadow-neutral-200/50 transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-6"
+                  className="group relative bg-white border border-gray-100 p-6 md:p-10 transition-all hover:shadow-md cursor-pointer flex flex-col md:flex-row gap-4 md:gap-8 items-start md:items-center justify-between"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${config.color}`}>
-                        <Icon size={12} />
-                        {notice.notice_type}
+                  <div className="flex-1 space-y-3 md:space-y-4 w-full">
+                    <div className="flex items-center justify-between md:justify-start gap-4">
+                      <span className={`px-2 py-0.5 text-[8px] md:text-[9px] font-bold uppercase tracking-widest border border-current ${config.color}`}>
+                        {config.label}
                       </span>
-                      <div className="flex items-center gap-1.5 text-neutral-400 font-bold text-xs">
-                        <Calendar size={12} />
-                        {new Date(notice.display_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </div>
+                      <span className="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                        <Calendar size={12} className="text-[#a88d5e]" />
+                        {new Date(notice.display_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
                     </div>
-                    <h3 className="text-2xl font-black text-neutral-900 mb-2 group-hover:text-yellow-600 transition-colors">
+
+                    <h3 className="text-xl md:text-3xl font-serif italic text-[#1f1b16] leading-tight">
                       {notice.title}
                     </h3>
-                    <p className="text-neutral-500 font-medium leading-relaxed max-w-2xl line-clamp-1">
+                    
+                    <p className="text-gray-500 text-sm md:text-base font-light line-clamp-2 md:line-clamp-1 italic font-serif">
                       {notice.content}
                     </p>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 rounded-2xl bg-neutral-50 flex items-center justify-center group-hover:bg-yellow-400 transition-colors">
-                        <ChevronRight className="w-5 h-5 text-neutral-300 group-hover:text-neutral-900" />
-                     </div>
+                  <div className="flex items-center justify-end w-full md:w-auto gap-4">
+                    <span className="hidden md:inline text-[10px] font-bold uppercase tracking-widest text-[#a88d5e] opacity-0 group-hover:opacity-100 transition-all">
+                      Read Entry
+                    </span>
+                    <div className="w-10 h-10 md:w-12 md:h-12 border border-gray-100 flex items-center justify-center group-hover:bg-[#1f1b16] transition-all">
+                      <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-gray-300 group-hover:text-[#a88d5e]" />
+                    </div>
                   </div>
                 </div>
               );
             })
           ) : (
-            <div className="text-center py-24 bg-neutral-50 rounded-[3rem] border-2 border-dashed border-neutral-200">
-               <div className="bg-white w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <Search className="w-6 h-6 text-neutral-300" />
-              </div>
-              <p className="text-neutral-900 font-black text-xl mb-1">Quiet on the front!</p>
-              <p className="text-neutral-400 font-bold uppercase text-xs tracking-widest">No {filter} notices found</p>
+            <div className="text-center py-20 md:py-32 border border-dashed border-gray-200">
+              <Search className="w-8 h-8 md:w-10 md:h-10 text-gray-200 mx-auto mb-4 md:mb-6" strokeWidth={1} />
+              <p className="font-serif italic text-gray-400 text-sm md:text-lg tracking-widest uppercase">The archive is silent</p>
             </div>
           )}
         </div>
       </main>
 
-      {/* Detail Modal */}
+      {/* MOBILE COMPATIBLE MODAL */}
       {selectedNotice && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setSelectedNotice(null)}></div>
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 md:p-6">
+          <div className="absolute inset-0 bg-[#1f1b16]/95 backdrop-blur-md" onClick={() => setSelectedNotice(null)}></div>
           
-          <div className="relative bg-white w-full max-w-2xl rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setSelectedNotice(null)} className="absolute top-8 right-8 p-2 hover:bg-neutral-100 rounded-full transition-colors">
-              <X className="w-6 h-6 text-neutral-400" />
+          <div className="relative bg-white w-full max-w-2xl p-6 md:p-16 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setSelectedNotice(null)} className="absolute top-4 right-4 md:top-8 md:right-8 text-gray-400 hover:text-[#1f1b16]">
+              <X size={24} strokeWidth={1} />
             </button>
             
-            <div className="mb-6">
-              <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-4 inline-block ${TYPE_MAP[selectedNotice.notice_type]?.color || TYPE_MAP.INFO.color}`}>
+            <div className="mb-6 md:mb-10 text-center">
+              <span className={`px-4 py-1 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.3em] mb-4 md:mb-6 inline-block ${TYPE_MAP[selectedNotice.notice_type]?.color || TYPE_MAP.INFO.color}`}>
                 {selectedNotice.notice_type}
               </span>
-              <h2 className="text-4xl font-black text-neutral-900 tracking-tight leading-tight mb-4">
+              <h2 className="text-2xl md:text-5xl font-serif italic text-[#1f1b16] leading-tight mb-4 md:mb-6">
                 {selectedNotice.title}
               </h2>
-              <div className="flex items-center gap-2 text-neutral-400 font-bold text-sm">
-                <Calendar size={16} />
-                {new Date(selectedNotice.display_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+              <div className="flex items-center justify-center gap-2 text-gray-400 font-bold text-[9px] md:text-[10px] uppercase tracking-[0.2em]">
+                <Calendar size={12} className="text-[#a88d5e]" />
+                {new Date(selectedNotice.display_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
             </div>
 
-            <div className="h-px bg-neutral-100 w-full mb-8"></div>
-            
             <div className="prose prose-neutral max-w-none">
-              <p className="text-neutral-600 text-lg leading-relaxed whitespace-pre-wrap font-medium">
+              <p className="text-gray-600 text-sm md:text-lg leading-relaxed whitespace-pre-wrap font-serif italic">
                 {selectedNotice.content}
               </p>
             </div>
 
             <button 
               onClick={() => setSelectedNotice(null)}
-              className="mt-12 w-full bg-neutral-900 text-white py-5 rounded-2xl font-black hover:bg-yellow-400 hover:text-neutral-900 transition-all active:scale-95 shadow-lg"
+              className="mt-8 md:mt-16 w-full border border-[#1f1b16] py-4 md:py-5 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1f1b16] hover:text-white transition-all"
             >
-              GOT IT
+              Acknowledge Bulletin
             </button>
           </div>
         </div>

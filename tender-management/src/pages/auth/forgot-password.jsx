@@ -1,145 +1,131 @@
 import React, { useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
-import { KeyRound, Mail, Lock, ArrowRight, ShieldCheck, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { KeyRound, Mail, Lock, ArrowRight, ShieldCheck, CheckCircle2, ChevronLeft, Sparkles } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { authAPI } from '../../api/auth.service'; // Adjust path if needed
+import { authAPI } from '../../api/auth.service';
 import { Link, useNavigate } from 'react-router-dom';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // Step 1: Request OTP, Step 2: Reset Password
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
-  // Form State
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Toast Helpers
   const showSuccess = (msg) => toast.success(msg, {
-    style: { border: '2px solid #fbbf24', padding: '16px', borderRadius: '20px' },
+    style: { background: '#1f1b16', color: '#a88d5e', border: '1px solid #a88d5e/20' },
   });
 
   const showError = (msg) => toast.error(msg, {
-    style: { borderRadius: '20px', fontWeight: 'bold' }
+    style: { background: '#fff', color: '#1f1b16', fontWeight: 'bold' }
   });
 
-  // --- STEP 1: SEND OTP ---
   const handleSendOTP = async (e) => {
     e.preventDefault();
     if (!email) return showError("Please enter your email address");
-
     setLoading(true);
     try {
       const { data } = await authAPI.forgotPassword(email);
       if (data.success) {
-        showSuccess("OTP sent! Check your inbox.");
+        showSuccess("A verification code has been dispatched.");
         setStep(2);
       }
     } catch (err) {
-      showError(err.response?.data?.message || "Failed to send OTP");
+      showError(err.response?.data?.message || "Verification failed");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- STEP 2: VERIFY & RESET ---
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    
-    if (newPassword !== confirmPassword) {
-      return showError("Passwords do not match!");
-    }
-    if (newPassword.length < 6) {
-      return showError("Password must be at least 6 characters.");
-    }
-
+    if (newPassword !== confirmPassword) return showError("Passwords do not match");
     setLoading(true);
     try {
-      const payload = {
-        email,
-        otp,
-        newPassword
-      };
-
-      const { data } = await authAPI.resetPassword(payload);
-      
+      const { data } = await authAPI.resetPassword({ email, otp, newPassword });
       if (data.success) {
-        showSuccess("Password reset successfully!");
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        showSuccess("Credentials updated successfully.");
+        setTimeout(() => navigate('/login'), 2000);
       }
     } catch (err) {
-      showError(err.response?.data?.message || "Failed to reset password");
+      showError(err.response?.data?.message || "Update failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div>
+    <div className="bg-[#fbfbfb] min-h-screen">
       <Header />
-      <div className="min-h-screen flex items-center justify-center p-4 font-sans bg-gray-50">
-        <Toaster position="top-center" reverseOrder={false} />
+      <Toaster position="top-right" />
+      
+      <div className="flex min-h-screen pt-20 md:pt-0">
         
-        <div className="w-full max-w-5xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px] border border-neutral-100">
+        {/* LEFT SIDE: CINEMATIC SECURITY VIBE */}
+        <div className="hidden lg:flex lg:w-1/2 bg-[#1f1b16] relative overflow-hidden items-center justify-center p-20">
+          <div className="absolute inset-0 opacity-30">
+            <img 
+              src="https://images.unsplash.com/photo-1554435493-93422e8220c8?w=1200" 
+              className="w-full h-full object-cover" 
+              alt="Secure Architecture" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1f1b16] to-transparent"></div>
+          </div>
           
-          {/* Left Side: Branding */}
-          <div className="md:w-1/2 bg-neutral-900 p-12 flex flex-col justify-between relative overflow-hidden text-white">
-            <div className="relative z-10">
-              <div className="bg-yellow-400 w-12 h-12 rounded-full flex items-center justify-center text-neutral-900 mb-6 shadow-lg">
-                <KeyRound className="w-6 h-6" />
-              </div>
-              <h1 className="text-4xl md:text-5xl font-black text-white leading-tight">
-                ACCOUNT <br /> RECOVERY.
-              </h1>
-              <p className="mt-4 text-neutral-400 font-bold text-lg">
-                {step === 1 ? "Secure Identity Verification" : "Create New Credentials"}
-              </p>
-            </div>
-            
-            {/* Steps Indicator */}
-            <div className="flex gap-2 mt-8">
-              <div className={`h-2 rounded-full transition-all duration-300 ${step === 1 ? 'w-12 bg-yellow-400' : 'w-4 bg-neutral-700'}`}></div>
-              <div className={`h-2 rounded-full transition-all duration-300 ${step === 2 ? 'w-12 bg-yellow-400' : 'w-4 bg-neutral-700'}`}></div>
+          <div className="relative z-10 max-w-lg">
+            <KeyRound className="text-[#a88d5e] mb-6 w-8 h-8" />
+            <h1 className="text-6xl font-serif italic text-white mb-8 leading-tight">
+              Restoring your <br />
+              <span className="text-[#a88d5e]">access.</span>
+            </h1>
+            <div className="w-12 h-[1px] bg-[#a88d5e] mb-8"></div>
+            <p className="text-gray-400 font-serif italic text-xl leading-relaxed">
+              Security is the cornerstone of Windsor Living. Follow the steps to safely recover your account credentials.
+            </p>
+
+            {/* PROGRESS TRACKER */}
+            <div className="mt-12 flex items-center gap-4">
+               <div className={`h-[2px] transition-all duration-700 ${step === 1 ? 'w-16 bg-[#a88d5e]' : 'w-8 bg-white/10'}`}></div>
+               <div className={`h-[2px] transition-all duration-700 ${step === 2 ? 'w-16 bg-[#a88d5e]' : 'w-8 bg-white/10'}`}></div>
+               <span className="text-[10px] text-[#a88d5e] font-bold uppercase tracking-[0.3em]">Step {step} of 2</span>
             </div>
           </div>
+        </div>
 
-          {/* Right Side: Dynamic Form */}
-          <div className="md:w-1/2 p-8 md:p-16 flex flex-col justify-center bg-white relative">
+        {/* RIGHT SIDE: MINIMALIST RECOVERY FORM */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-24 bg-white">
+          <div className="w-full max-w-md relative">
             
-            {/* Back to Login Link */}
-            <Link to="/login" className="absolute top-8 right-8 text-sm font-bold text-neutral-400 hover:text-neutral-900 flex items-center gap-1 transition-colors">
-              <ChevronLeft className="w-4 h-4" /> Back to Login
+            <Link to="/login" className="absolute -top-16 left-0 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-[#a88d5e] transition-colors">
+              <ChevronLeft size={14} /> Back to Login
             </Link>
 
-            <div className="mb-8">
-              <h2 className="text-3xl font-black text-neutral-900 tracking-tight mb-2">
-                {step === 1 ? "Forgot Password?" : "Set New Password"}
+            <div className="mb-12">
+              <span className="text-[#a88d5e] font-bold uppercase text-[10px] tracking-[0.4em] mb-4 block">Recovery Portal</span>
+              <h2 className="text-4xl font-serif text-[#1f1b16] mb-4 uppercase tracking-tight">
+                {step === 1 ? "Identity" : "Credentials"}
               </h2>
-              <p className="text-neutral-500 font-medium">
+              <p className="text-gray-500 text-sm font-serif italic leading-relaxed">
                 {step === 1 
-                  ? "Enter your email address to receive a 6-digit verification code." 
-                  : `Enter the code sent to ${email} and your new password.`}
+                  ? "Enter the email associated with your residence to receive a secure code." 
+                  : "Verification successful. Please establish your new security key."}
               </p>
             </div>
 
-            {/* STEP 1 FORM: EMAIL */}
-            {step === 1 && (
-              <form onSubmit={handleSendOTP} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase text-neutral-400 ml-4">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+            {step === 1 ? (
+              <form onSubmit={handleSendOTP} className="space-y-10">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Resident Email</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a88d5e]" />
                     <input 
-                      type="email" 
-                      required
-                      className="w-full bg-neutral-100 border-none rounded-2xl py-4 pl-14 pr-6 font-bold focus:ring-2 focus:ring-yellow-400 transition-all"
-                      placeholder="name@example.com"
+                      type="email" required
+                      className="w-full border-b border-gray-100 py-4 pl-8 pr-4 font-serif text-lg focus:outline-none focus:border-[#a88d5e] transition-all placeholder:text-gray-200"
+                      placeholder="resident@homeavatar.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -147,46 +133,36 @@ const ForgotPassword = () => {
                 </div>
 
                 <button 
-                  type="submit" 
-                  disabled={loading}
-                  className="w-full bg-yellow-400 text-neutral-900 py-5 rounded-2xl font-black text-lg hover:bg-yellow-500 transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
+                  type="submit" disabled={loading}
+                  className="w-full bg-[#1f1b16] text-[#a88d5e] py-6 text-[10px] font-bold uppercase tracking-[0.4em] hover:bg-[#a88d5e] hover:text-[#1f1b16] transition-all duration-500 flex items-center justify-center gap-4 group"
                 >
-                  {loading ? "Sending OTP..." : "Send Verification Code"}
-                  {!loading && <ArrowRight className="w-5 h-5" />}
+                  {loading ? "Verifying..." : "Request Code"}
+                  {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />}
                 </button>
               </form>
-            )}
-
-            {/* STEP 2 FORM: OTP & NEW PASSWORD */}
-            {step === 2 && (
-              <form onSubmit={handleResetPassword} className="space-y-4">
-                
-                {/* OTP Input */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase text-neutral-400 ml-4">One-Time Password (OTP)</label>
-                  <div className="relative">
-                    <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+            ) : (
+              <form onSubmit={handleResetPassword} className="space-y-8">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400">6-Digit Code</label>
+                  <div className="relative group">
+                    <ShieldCheck className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a88d5e]" />
                     <input 
-                      type="text" 
-                      required
-                      maxLength={6}
-                      className="w-full bg-neutral-100 border-none rounded-2xl py-4 pl-14 pr-6 font-bold tracking-widest text-lg"
-                      placeholder="123456"
+                      type="text" required maxLength={6}
+                      className="w-full border-b border-gray-100 py-4 pl-8 pr-4 font-serif text-2xl tracking-[0.5em] focus:outline-none focus:border-[#a88d5e] transition-all"
+                      placeholder="000000"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
                     />
                   </div>
                 </div>
 
-                {/* New Password */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase text-neutral-400 ml-4">New Password</label>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400">New Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                    <Lock className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a88d5e]" />
                     <input 
-                      type="password" 
-                      required
-                      className="w-full bg-neutral-100 border-none rounded-2xl py-4 pl-14 pr-6 font-bold"
+                      type="password" required
+                      className="w-full border-b border-gray-100 py-4 pl-8 pr-4 font-serif text-lg focus:outline-none focus:border-[#a88d5e] transition-all"
                       placeholder="••••••••"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
@@ -194,15 +170,13 @@ const ForgotPassword = () => {
                   </div>
                 </div>
 
-                {/* Confirm Password */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase text-neutral-400 ml-4">Confirm Password</label>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Confirm New Password</label>
                   <div className="relative">
-                    <CheckCircle2 className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                    <CheckCircle2 className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a88d5e]" />
                     <input 
-                      type="password" 
-                      required
-                      className="w-full bg-neutral-100 border-none rounded-2xl py-4 pl-14 pr-6 font-bold"
+                      type="password" required
+                      className="w-full border-b border-gray-100 py-4 pl-8 pr-4 font-serif text-lg focus:outline-none focus:border-[#a88d5e] transition-all"
                       placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
@@ -210,31 +184,20 @@ const ForgotPassword = () => {
                   </div>
                 </div>
 
-                <div className="pt-2">
-                  <button 
-                    type="submit" 
-                    disabled={loading}
-                    className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-black text-lg hover:bg-neutral-800 transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {loading ? "Resetting..." : "Reset Password"}
-                    {!loading && <ArrowRight className="w-5 h-5" />}
-                  </button>
-                </div>
-
                 <button 
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="w-full text-center text-sm font-bold text-neutral-400 hover:text-neutral-900 mt-2"
+                  type="submit" disabled={loading}
+                  className="w-full bg-[#1f1b16] text-[#a88d5e] py-6 text-[10px] font-bold uppercase tracking-[0.4em] hover:bg-[#a88d5e] hover:text-[#1f1b16] transition-all duration-500 flex items-center justify-center gap-4"
                 >
-                  Change Email Address
+                  {loading ? "Updating..." : "Secure Credentials"}
                 </button>
               </form>
             )}
 
-            <div className="mt-8 flex items-center justify-center gap-2 text-neutral-400 text-sm font-bold">
-              <ShieldCheck className="w-4 h-4 text-green-500" />
-              Secure 256-bit Encryption
+            <div className="mt-16 flex items-center justify-center gap-3 text-gray-300 text-[9px] font-bold uppercase tracking-[0.2em]">
+               <ShieldCheck className="w-3 h-3 text-green-500/50" />
+               AES-256 Multi-Factor Recovery
             </div>
+
           </div>
         </div>
       </div>
