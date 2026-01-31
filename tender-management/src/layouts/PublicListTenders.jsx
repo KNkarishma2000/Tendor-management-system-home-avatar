@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicTenderAPI } from '../api/auth.service';
-import { Calendar, ArrowRight, FileText, Search } from 'lucide-react';
-import Header from '../pages/components/Header'; // Ensure path is correct
-import Footer from '../pages/components/Footer'; // Ensure path is correct
+import { Calendar, ArrowRight, FileText, Search, ShieldCheck } from 'lucide-react';
+import Header from '../pages/components/Header';
+import Footer from '../pages/components/Footer';
 
 export default function PublicTenderList() {
   const [tenders, setTenders] = useState([]);
@@ -11,7 +11,7 @@ export default function PublicTenderList() {
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
-  // State to manage active link in Header (if your Header uses it)
+  // State for Header
   const [activePage, setActivePage] = useState('tenders');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -34,14 +34,13 @@ export default function PublicTenderList() {
   );
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center font-black animate-pulse text-xl uppercase italic">
-      Loading Open Tenders...
+    <div className="h-screen flex items-center justify-center font-serif italic text-[#a88d5e] animate-pulse tracking-widest bg-[#fbfbfb]">
+      Opening Archive...
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* 1. Header with required props */}
+    <div className="min-h-screen bg-[#fbfbfb]">
       <Header 
         activePage={activePage} 
         setActivePage={setActivePage} 
@@ -49,104 +48,119 @@ export default function PublicTenderList() {
         setIsMobileMenuOpen={setIsMobileMenuOpen} 
       />
 
-      {/* 2. Main Content Wrapper - Added pt-32 to account for fixed header */}
-      <main className="max-w-6xl mx-auto p-6 pt-32 pb-20">
-        
-        {/* Header Title Area */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-          <div>
-            <h1 className="text-4xl font-black uppercase italic tracking-tighter">Live Tenders</h1>
-            <p className="text-neutral-500 font-bold">Public procurement & opportunities</p>
+      {/* LUXURY HERO SECTION */}
+      <section className="pt-48 pb-20 px-6 bg-[#1f1b16] text-center border-b border-[#a88d5e]/20">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <ShieldCheck size={16} className="text-[#a88d5e]" />
+            <span className="text-[#a88d5e] font-bold uppercase text-[10px] tracking-[0.4em] block">
+              Procurement Portal
+            </span>
           </div>
-
-          {/* Search Bar */}
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+          <h1 className="text-5xl md:text-7xl font-serif italic text-white leading-tight">
+            HomeAvatar <span className="text-[#a88d5e]">Opportunities</span>
+          </h1>
+          <div className="w-12 h-[1px] bg-[#a88d5e] mx-auto my-8"></div>
+          
+          {/* Refined Search Bar */}
+          <div className="relative max-w-lg mx-auto mt-12">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input 
-              type="text"
-              placeholder="Search by title..."
-              className="w-full pl-12 pr-4 py-3 bg-neutral-100 border-none rounded-2xl font-bold text-sm focus:ring-2 focus:ring-yellow-400 outline-none transition-all"
+              type="text" 
+              placeholder="Search active tenders..." 
+              className="w-full bg-white/5 border-b border-white/10 py-4 pl-12 pr-4 text-white font-light focus:outline-none focus:border-[#a88d5e] transition-all placeholder:text-gray-600"
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
+      </section>
 
-        {/* Table Header (Hidden on small screens) */}
-        <div className="hidden md:grid grid-cols-12 px-8 mb-4 text-[10px] font-black uppercase tracking-widest text-neutral-400">
-          <div className="col-span-5">Tender Details</div>
-          <div className="col-span-3">Deadline</div>
-          <div className="col-span-2">Estimate</div>
-          <div className="col-span-2 text-right">Action</div>
+      {/* TENDER LISTING */}
+      <main className="max-w-6xl mx-auto px-6 py-24">
+        
+        {/* Table Header - Editorial Style */}
+        <div className="hidden md:grid grid-cols-12 px-8 mb-8 text-[11px] font-bold uppercase tracking-[0.2em] text-[#a88d5e]">
+          <div className="col-span-6">Opportunity Description</div>
+          <div className="col-span-3">Closing Date</div>
+          <div className="col-span-3 text-right">Value & Action</div>
         </div>
 
         {/* Tender Rows */}
-        <div className="space-y-3">
+        <div className="space-y-6">
           {filteredTenders.map((tender) => (
             <div 
               key={tender.id}
               onClick={() => navigate(`/tenders/${tender.id}`)}
-              className="group grid grid-cols-1 md:grid-cols-12 items-center bg-white border border-neutral-100 p-4 md:px-8 md:py-6 rounded-3xl hover:border-black hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
+              className="group relative grid grid-cols-1 md:grid-cols-12 items-center bg-white border border-gray-100 p-8 md:px-10 md:py-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] hover:-translate-y-1 cursor-pointer overflow-hidden"
             >
-              {/* Title & Type */}
-              <div className="col-span-5 flex items-center gap-4">
-                <div className="w-10 h-10 bg-neutral-900 text-white rounded-xl flex items-center justify-center shrink-0">
-                  <FileText size={18} />
+              {/* Gold Accent Bar on hover */}
+              <div className="absolute left-0 top-0 h-full w-[2px] bg-[#a88d5e] scale-y-0 group-hover:scale-y-100 transition-transform duration-500"></div>
+
+              {/* Title & Status */}
+              <div className="col-span-6 flex items-start gap-6">
+                <div className="w-12 h-12 border border-gray-100 text-[#a88d5e] flex items-center justify-center shrink-0 group-hover:bg-[#1f1b16] group-hover:border-[#1f1b16] transition-all duration-500">
+                  <FileText size={20} strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h3 className="font-black text-neutral-900 group-hover:underline leading-tight">
+                  <h3 className="text-xl font-serif italic text-[#1f1b16] mb-2 leading-tight">
                     {tender.title}
                   </h3>
-                  <span className="text-[10px] px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full font-black uppercase mt-1 inline-block">
-                    {tender.status}
-                  </span>
+                  <div className="flex items-center gap-3">
+                   
+                    <span className="text-[9px] px-3 py-1 bg-[#a88d5e]/10 text-[#a88d5e] rounded-full font-bold uppercase tracking-widest">
+                      {tender.status}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Deadline */}
-             <div className="col-span-3 mt-4 md:mt-0 flex items-center gap-2">
-  <Calendar size={14} className="text-neutral-400" />
-  <span className="text-sm font-bold text-neutral-600">
-    {(() => {
-      // Logic to handle both Array and Object formats
-      const timelineData = Array.isArray(tender.tender_timeline) 
-        ? tender.tender_timeline[0] 
-        : tender.tender_timeline;
-      
-      const dateStr = timelineData?.submission_deadline;
-      const d = new Date(dateStr);
-      
-      return d instanceof Date && !isNaN(d) 
-        ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-        : "TBA";
-    })()}
-  </span>
-</div>
-
-              {/* Budget */}
-              <div className="col-span-2 mt-2 md:mt-0">
-                <span className="text-sm font-black text-neutral-900">
-                  ₹{parseFloat(tender.budget_estimate).toLocaleString()}
-                </span>
+              <div className="col-span-3 mt-6 md:mt-0 flex flex-col">
+                <span className="text-[9px] text-gray-400 uppercase tracking-widest mb-1">Submission Deadline</span>
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Calendar size={14} className="text-[#a88d5e]" />
+                  <span>
+                    {(() => {
+                      const timelineData = Array.isArray(tender.tender_timeline) 
+                        ? tender.tender_timeline[0] 
+                        : tender.tender_timeline;
+                      const dateStr = timelineData?.submission_deadline;
+                      const d = new Date(dateStr);
+                      return d instanceof Date && !isNaN(d) 
+                        ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                        : "To be announced";
+                    })()}
+                  </span>
+                </div>
               </div>
 
-              {/* Action */}
-              <div className="col-span-2 mt-4 md:mt-0 text-right">
-                <button className="inline-flex items-center gap-2 bg-neutral-100 group-hover:bg-black group-hover:text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-colors">
-                  View Details <ArrowRight size={14} />
+              {/* Budget & Button */}
+              <div className="col-span-3 mt-6 md:mt-0 text-right flex flex-col items-end gap-3">
+                <span className="text-lg font-serif italic text-[#1f1b16]">
+                  ₹{parseFloat(tender.budget_estimate).toLocaleString('en-IN')}
+                </span>
+                <button className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[#a88d5e] group-hover:text-[#1f1b16] transition-all">
+                  View Proposal <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform duration-500" />
                 </button>
               </div>
             </div>
           ))}
 
           {filteredTenders.length === 0 && (
-            <div className="py-20 text-center border-2 border-dashed border-neutral-200 rounded-[2rem]">
-              <p className="text-neutral-400 font-bold italic">No tenders matching your search.</p>
+            <div className="py-32 text-center border border-dashed border-gray-200">
+              <p className="font-serif italic text-gray-400 text-lg uppercase tracking-widest">No matching opportunities found</p>
             </div>
           )}
         </div>
+
+        {/* Contact Note */}
+        <div className="mt-20 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-gray-400">
+                Direct inquiries regarding HomeAvatar procurement to the administration office.
+            </p>
+        </div>
       </main>
 
-      {/* 3. Footer */}
       <Footer />
     </div>
   );
