@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { communityAPI } from '../api/auth.service';
 import Header from '../pages/components/Header'; 
 import Footer from '../pages/components/Footer';
-import { Share2, Clock, User } from 'lucide-react';
+import { Share2 } from 'lucide-react';
 
 const BlogDetails = () => {
   const { id } = useParams();
@@ -26,83 +26,53 @@ const BlogDetails = () => {
     fetchDetails();
   }, [id]);
 
-  if (loading) return <div className="h-screen flex items-center justify-center font-serif italic text-[#a88d5e] animate-pulse text-lg tracking-widest">Opening Story...</div>;
-  if (!blog) return <div className="h-screen flex items-center justify-center font-serif text-[#1f1b16]">Story Not Found</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center font-black uppercase tracking-widest">Opening Story...</div>;
+  if (!blog) return <div className="h-screen flex items-center justify-center font-black uppercase tracking-widest">Story Not Found</div>;
 
   return (
     <div className="min-h-screen bg-white">
+      <Header />
       
-      {/* HERO SECTION WITH INTEGRATED HEADER */}
-      <div className="relative w-full h-[60vh] overflow-hidden bg-[#1f1b16]">
+      <main className="max-w-4xl mx-auto px-6 pt-32 pb-20">
         
-        {/* Floating Header - Placed above the banner */}
-        <div className="absolute top-0 left-0 w-full z-50">
-           <Header />
+        {/* 1. Half-Width Featured Image (Fixed Height 200px, No Radius) */}
+        <div className=" bg-neutral-100 mb-2">
+          <img 
+            src={blog.images?.[0] || "https://via.placeholder.com/600x200?text=Featured+Image"} 
+            className="w-[1250px] h-[250px]  object-cover" 
+            alt="Featured"
+          />
         </div>
 
-        {/* Banner Image */}
-        <img 
-          src={blog.images?.[0] || "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200"} 
-          className="w-full h-full object-cover transition-transform duration-[2s] hover:scale-105" 
-          alt="Featured"
-        />
-        
-        {/* Cinematic Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/70"></div>
+        {/* 2. Blog Title (Left Aligned, ~35px) */}
+        <h1 className="text-[35px] font-black text-neutral-900 leading-tight mb-2 text-left uppercase tracking-tighter">
+          {blog.title}
+        </h1>
 
-        {/* Hero Text Content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white px-6 mt-20">
-           <span className="bg-[#a88d5e] px-6 py-2 text-[11px] font-bold uppercase tracking-[0.5em] mb-8 shadow-2xl animate-fade-in">
-             {blog.category || "Lifestyle"}
-           </span>
-           <h1 className="text-4xl md:text-6xl font-serif italic text-center max-w-5xl leading-[1.1] drop-shadow-2xl">
-             {blog.title}
-           </h1>
-           
-           {/* Bottom Hero Meta */}
-           <div className="absolute bottom-12 flex items-center gap-10 text-[10px] font-bold uppercase tracking-[0.3em] text-gray-300">
-              <div className="flex items-center gap-3">
-                 <User size={14} className="text-[#a88d5e]" />
-                 <span className="text-white">By {blog.residents?.full_name || "Windsor Resident"}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                 <Clock size={14} className="text-[#a88d5e]" />
-                 <span>{new Date(blog.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-              </div>
-           </div>
-        </div>
-      </div>
+        {/* 3. Meta Row (Category | Date | Share) */}
+        <div className="flex items-center justify-between border-b border-neutral-100 pb-3 mb-2">
+          <div className="flex items-center gap-6">
+            <span className="text-[10px] font-black uppercase tracking-widest text-yellow-500">
+              {blog.category || "Blogs"}
+            </span>
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+              {new Date(blog.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </span>
+          </div>
 
-      {/* MAIN ARTICLE AREA - CLEAN & CENTERED */}
-      <main className="max-w-4xl mx-auto px-6 py-20">
-        
-        {/* Social Share Bar */}
-        <div className="flex justify-between items-center border-b border-gray-100 pb-8 mb-16">
-           <button 
-             onClick={() => navigate(-1)}
-             className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a88d5e] hover:text-[#1f1b16] transition-colors"
-           >
-             ← Back
-           </button>
-           <button className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-[#a88d5e] transition-colors">
-              <Share2 size={16} />
-              <span>Share Story</span>
-           </button>
+          <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-black transition-colors">
+            <Share2 size={14} />
+            <span>Share</span>
+          </button>
         </div>
 
-        {/* Article Content with Premium Typography */}
-        <article className="prose prose-neutral max-w-none">
+        {/* 4. Blog Details / Content (18px Style) */}
+        <article className="max-w-3xl">
           <div 
-            className="font-serif text-[22px] leading-[2] text-[#333] 
-                       first-letter:text-8xl first-letter:font-bold first-letter:mr-4 
-                       first-letter:float-left first-letter:text-[#a88d5e] first-letter:mt-3
-                       selection:bg-[#a88d5e]/30"
+            className="text-[18px] leading-[1.8] text-neutral-700 font-medium whitespace-pre-line prose prose-neutral max-w-none"
             dangerouslySetInnerHTML={{ __html: blog.content }}
           />
         </article>
-
-        {/* Elegant End Marker */}
-        
       </main>
 
       <Footer />

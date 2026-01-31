@@ -29,7 +29,7 @@ import SupplierTenderPortal from './pages/tenders/SupplierTenderPortal';
 import PublicTenderList from './layouts/PublicListTenders';
 import PublicTenderDetails from './layouts/TenderDetails';
 import AllCarnivals from './layouts/AllCarnivals';
-import AllBlogs from './layouts/AllBlogs';
+import AllBlogs from './layouts/Allblogs';
 import BlogDetails from './layouts/BlogDetails';
 import AllGallery from './layouts/AllGallery';
 import ResidentNotices from './pages/community/NoticeBoard';
@@ -50,9 +50,6 @@ import ZohoVsElemensor from './pages/accountant/ZohoVsElemensor';
 import AdminRegisterUser from './pages/admin/Register';
 import SupplierProfile from './pages/tenders/SupplierProfile';
 
-import WindsorLiving from './layouts/PublicLayout';
-import Marketplace from './layouts/MarketPlace';
-
 
 
 function App() {
@@ -66,14 +63,13 @@ function App() {
     <Routes>
       
       {/* Public Routes */}
-      <Route path="/" element={<WindsorLiving />} />
+      <Route path="/" element={<PublicLayout />} />
       <Route path="/login" element={<Login />} />
         <Route path="/notices" element={<Notices />} />
       
  <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/tenders" element={<PublicTenderList />} />
       <Route path="/supplier-login" element={<LoginSupplier />} />
-            <Route path="/marketplace" element={<Marketplace />} />
        <Route path="/gallery" element={<AllGallery />} />
             <Route path="/carnivals" element={<AllCarnivals />} />
       <Route path="/resident-register" element={<RegisterResident />} />

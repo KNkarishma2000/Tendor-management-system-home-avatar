@@ -1,23 +1,20 @@
-import React, { useState } from 'react'; // Added useState here
-import { Building, Menu, X, LogIn, LogOut, User as UserIcon, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Building, Menu, X, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion'; 
-import LOGO from '../../assets/logo.png'
-import Main from '../../assets/shortlogo.png'
-const Header = () => {
-  // INTERNAL STATE: Now the header manages itself
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
+const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
   
+  // Get user info from localStorage
   const token = localStorage.getItem('accessToken');
   const userRole = localStorage.getItem('userRole');
+  const userEmail = localStorage.getItem('userEmail');
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.clear(); // Clear everything
     navigate('/login');
-    window.location.reload();
+    window.location.reload(); // Refresh to update header state
   };
 
   const getDashboardLink = () => {
@@ -31,118 +28,75 @@ const Header = () => {
 
   const navLinks = [
     { name: 'Home', path: '/' },
-    { name: 'Notices', path: '/notices' },
     { name: 'Blog', path: '/blog' },
-    { name: 'Market Place', path: '/marketplace' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'Carnivals', path: '/carnivals' },
     { name: 'Tenders', path: '/tenders' },
   ];
 
   return (
-    <>
-      {/* 1. Main Navbar */}
-      <div className="fixed top-8 left-0 right-0 z-[100] flex justify-center px-6 pointer-events-none">
-        <nav className="bg-[#1f1b16]/80 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-full px-3 py-2 flex items-center justify-between w-full max-w-6xl transition-all duration-500 pointer-events-auto">
-          
-          {/* Logo Section */}
-          <Link to="/" className="flex items-center group ml-2 mr-4 shrink-0">
-      <img
-        src={LOGO}
-        alt="logo"
-       
-        className="w-[90px] sm:w-[36px] md:w-[150px] object-contain"
-      />
-    </Link>
-
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 ${
-                  isActive(item.path) 
-                  ? 'text-[#a88d5e] bg-white/5' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
+    <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+      <nav className="bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl rounded-full px-2 py-2 flex items-center justify-between w-full max-w-5xl transition-all duration-300">
+        
+        {/* Logo Section */}
+        <Link to="/" className="flex items-center gap-3 pl-4">
+          <div className="bg-yellow-400 p-2 rounded-full text-neutral-900">
+            <Building className="w-5 h-5" />
           </div>
+          <span className="font-black text-lg tracking-tight text-neutral-800 hidden sm:block">My Home Avatar</span>
+        </Link>
 
-          {/* Auth Actions */}
-          <div className="flex items-center gap-3 pr-2">
-            {token ? (
-              <div className="flex items-center gap-3">
-                <Link 
-                  to={getDashboardLink()} 
-                  className="hidden sm:flex items-center gap-3 px-6 py-2.5 bg-[#a88d5e] text-[#1f1b16] rounded-full text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white transition-all duration-300 shadow-lg shadow-[#a88d5e]/20"
-                >
-                  <UserIcon size={14} />
-                  Portal
-                </Link>
-                <button 
-                  onClick={handleLogout}
-                  className="p-2.5 bg-white/5 text-gray-400 rounded-full hover:bg-red-500/10 hover:text-red-400 transition-all duration-300 border border-white/5"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <Link 
-                to="/login" 
-                className="flex items-center gap-3 px-8 py-3 bg-white text-[#1f1b16] rounded-full text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#a88d5e] transition-all duration-500"
-              >
-                <LogIn className="w-4 h-4" />
-                Login
-              </Link>
-            )}
-
-            {/* Hamburger Button: Works instantly now */}
-            <button 
-              type="button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-              className="md:hidden p-3 bg-white/5 rounded-full text-[#a88d5e] border border-white/5 active:scale-95 transition-all z-[110]"
+        {/* Desktop Links */}
+        <div className="hidden md:flex items-center bg-neutral-100/50 rounded-full p-1 mx-2">
+          {navLinks.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${
+                isActive(item.path) ? 'bg-neutral-900 text-white shadow-lg' : 'text-neutral-500 hover:text-neutral-900'
+              }`}
             >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </nav>
-      </div>
+              {item.name}
+            </Link>
+          ))}
+        </div>
 
-      {/* 2. Mobile Menu Overlay */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 w-full h-screen bg-[#1f1b16] z-[90] flex flex-col items-center justify-center p-8"
-          >
-            <div className="flex flex-col gap-8 mt-5 text-center">
-              {navLinks.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`text-[25px] sm:text-3xl md:text-4xl font-serif italic transition-all ${
-                    isActive(item.path) ? 'text-[#a88d5e]' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
-              
-              <div className="w-12 h-[1px] bg-[#a88d5e]/30 mx-auto my-4"></div>
-              
-           
+        {/* Auth Actions */}
+        <div className="flex items-center gap-2 pr-2">
+          {token ? (
+            <div className="flex items-center gap-3">
+              {/* Show Dashboard Link */}
+              <Link 
+                to={getDashboardLink()} 
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-full text-sm font-bold hover:bg-neutral-800 transition-all"
+              >
+                Dashboard
+              </Link>
+              {/* Logout Button */}
+              <button 
+                onClick={handleLogout}
+                className="p-2.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+          ) : (
+            <Link 
+              to="/login" 
+              className="flex items-center gap-2 px-6 py-2.5 bg-yellow-400 text-neutral-900 rounded-full text-sm font-black hover:bg-yellow-300 transition-all"
+            >
+              <LogIn className="w-4 h-4" />
+              Login
+            </Link>
+          )}
+
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-3 bg-neutral-100 rounded-full text-neutral-900">
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </nav>
+    </div>
   );
 };
 

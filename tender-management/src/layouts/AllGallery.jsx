@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import Header from '../pages/components/Header';
 import Footer from '../pages/components/Footer';
 import { communityAPI } from '../api/auth.service';
@@ -7,6 +7,8 @@ import { communityAPI } from '../api/auth.service';
 const AllGallery = () => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
   const [selectedImg, setSelectedImg] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -28,7 +30,7 @@ const AllGallery = () => {
   const openLightbox = (img, index) => {
     setSelectedImg(img);
     setCurrentIndex(index);
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden'; // Prevent scrolling
   };
 
   const closeLightbox = () => {
@@ -50,49 +52,37 @@ const AllGallery = () => {
     setCurrentIndex(prevIdx);
   };
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center font-serif italic text-[#a88d5e] animate-pulse tracking-widest">
-      Curating the Collection...
-    </div>
-  );
+  if (loading) return <div className="h-screen flex items-center justify-center font-black uppercase tracking-widest">Developing Snapshots...</div>;
 
   return (
-    <div className="min-h-screen bg-[#fbfbfb]">
+    <div className="min-h-screen bg-white">
       <Header />
       
-      <main className="max-w-7xl mx-auto px-6 pt-40 pb-20">
-        {/* Editorial Header */}
-        <header className="mb-20 text-center">
-          <span className="text-[#a88d5e] font-bold uppercase text-[10px] tracking-[0.4em] mb-4 block">
-            Visual Journal
-          </span>
-          <h1 className="text-5xl md:text-7xl font-serif italic text-[#1f1b16] leading-tight">
-            Life at the HomeAvatar
+      <main className="max-w-7xl mx-auto px-6 pt-32 pb-20">
+        <header className="mb-16">
+          <span className="text-yellow-500 font-black uppercase text-xs tracking-[0.3em]">Snapshot Archive</span>
+          <h1 className="text-6xl md:text-8xl font-black text-neutral-900 tracking-tighter leading-none mt-2">
+            LIFE AT <br/> THE AVATAR.
           </h1>
-          <div className="w-12 h-[1px] bg-[#a88d5e] mx-auto mt-8"></div>
         </header>
 
-        {/* Elegant Masonry Grid */}
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-8 space-y-8">
+        {/* Masonry-style Grid */}
+        <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
           {images.map((img, index) => (
             <div 
               key={img.id}
               onClick={() => openLightbox(img, index)}
-              className="relative group cursor-pointer overflow-hidden rounded-sm bg-white break-inside-avoid shadow-sm hover:shadow-xl transition-all duration-500"
+              className="relative group cursor-zoom-in overflow-hidden rounded-[2rem] bg-neutral-100 break-inside-avoid"
             >
               <img 
                 src={img.image_path} 
                 alt={img.caption}
-                className="w-full h-auto object-cover transition-transform duration-1000 scale-[1.01] group-hover:scale-105"
+                className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
               />
-              
-              {/* Overlay: Minimalist & Editorial */}
-              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end justify-start p-8">
-                <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                  <p className="text-white font-serif italic text-2xl mb-1">{img.caption}</p>
-                  <p className="text-white/80 text-[10px] font-bold uppercase tracking-[0.2em]">
-                    By {img.residents?.full_name || "Resident"}
-                  </p>
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-end p-8 opacity-0 group-hover:opacity-100">
+                <div>
+                  <p className="text-white font-black text-xl leading-tight">{img.caption}</p>
+                  <p className="text-white/60 text-xs font-bold mt-1 uppercase tracking-widest">By {img.residents?.full_name}</p>
                 </div>
               </div>
             </div>
@@ -100,46 +90,43 @@ const AllGallery = () => {
         </div>
       </main>
 
-      {/* --- REFINED LIGHTBOX --- */}
+      {/* --- LIGHTBOX MODAL --- */}
       {selectedImg && (
         <div 
-          className="fixed inset-0 z-[9999] bg-[#1f1b16]/98 flex items-center justify-center p-4 transition-all duration-500"
+          className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 md:p-10 transition-all duration-300"
           onClick={closeLightbox}
         >
-          {/* Elegant Close Button */}
-          <button className="absolute top-10 right-10 text-white/30 hover:text-[#a88d5e] transition-colors">
-            <X size={30} strokeWidth={1} />
+          {/* Close Button */}
+          <button className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors">
+            <X size={40} strokeWidth={1} />
           </button>
 
-          {/* Minimal Controls */}
+          {/* Controls */}
           <button 
             onClick={prevImg}
-            className="absolute left-6 p-4 text-white/20 hover:text-[#a88d5e] transition-all"
+            className="absolute left-4 md:left-8 p-4 text-white/30 hover:text-white bg-white/5 rounded-full backdrop-blur-md transition-all"
           >
-            <ChevronLeft size={40} strokeWidth={1} />
+            <ChevronLeft size={32} />
           </button>
 
           <button 
             onClick={nextImg}
-            className="absolute right-6 p-4 text-white/20 hover:text-[#a88d5e] transition-all"
+            className="absolute right-4 md:right-8 p-4 text-white/30 hover:text-white bg-white/5 rounded-full backdrop-blur-md transition-all"
           >
-            <ChevronRight size={40} strokeWidth={1} />
+            <ChevronRight size={32} />
           </button>
 
-          {/* Image Display */}
-          <div className="max-w-4xl w-full flex flex-col items-center">
+          {/* Image Container */}
+          <div className="max-w-5xl w-full flex flex-col items-center">
             <img 
               src={selectedImg.image_path} 
-              className="max-h-[80vh] w-auto object-contain shadow-2xl animate-in fade-in zoom-in-95 duration-500"
+              className="max-h-[75vh] w-auto object-contain shadow-2xl animate-in zoom-in-95 duration-300"
               alt="Zoomed view"
               onClick={(e) => e.stopPropagation()} 
             />
-            <div className="mt-10 text-center" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-white font-serif italic text-3xl tracking-wide">{selectedImg.caption}</h3>
-                <div className="w-8 h-[1px] bg-[#a88d5e] mx-auto my-4"></div>
-                <p className="text-[#a88d5e] font-bold text-[10px] uppercase tracking-[0.3em]">
-                  Shared by {selectedImg.residents?.full_name || "Resident"}
-                </p>
+            <div className="mt-8 text-center" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-white text-2xl font-black tracking-tight">{selectedImg.caption}</h3>
+                <p className="text-white/40 font-bold text-sm uppercase mt-2 tracking-widest italic">Shared by {selectedImg.residents?.full_name}</p>
             </div>
           </div>
         </div>
