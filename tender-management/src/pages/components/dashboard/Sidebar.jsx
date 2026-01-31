@@ -26,6 +26,7 @@ ACCOUNTANT: [
   { label: 'Raw Data Export', icon: FileText, path: '/accountant/export' },
   { label: 'Invoices', icon: Briefcase, path: '/accountant/invoices' },
   { label: 'Purchase Reconciliation', icon: Settings, path: '/accountant/purchasereconcilation' },
+      { label: 'Updated Attendance', icon: Settings, path: '/accountant/updatedattendance' },
     { label: 'Bank Reconciliation', icon: Settings, path: '/accountant/bankreconcilation' },
 { label: 'Zoho VS Elemensor', icon: Settings, path: '/accountant/zohovselemensor' },
     

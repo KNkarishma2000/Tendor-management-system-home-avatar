@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://palegreen-rhinoceros-358698.hostingersite.com/api'; // Change to your production URL later
+const API_BASE_URL = 'http://palegreen-rhinoceros-358698.hostingersite.com/api'; // Change to your production URL later
 
 // Create an instance with default config
 const apiClient = axios.create({
@@ -260,6 +260,12 @@ export const publicTenderAPI = {
 // --- FINANCE & DOCUMENT MANAGEMENT API ---
 // --- FINANCE & DOCUMENT MANAGEMENT API ---
 export const financeAPI = {
+  processUpdatedAttendance: (data) => 
+    apiClient.post('/drive/updated-attendance-process', data),
+
+  // ✅ NEW: Fetch history for the updated attendance table
+  getUpdatedAttendanceHistory: () => 
+    apiClient.get('/drive/updated-attendance-history'),
   searchDrive: (searchTerm) => 
     apiClient.get('/drive/search', { params: { searchTerm } }),
 

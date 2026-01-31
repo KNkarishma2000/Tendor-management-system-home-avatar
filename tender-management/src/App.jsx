@@ -10,7 +10,7 @@ import LoginSupplier from './pages/auth/LoginSupplier';
 import RegisterResident from './pages/auth/ResidentRegister';
 import RegisterSupplier from './pages/auth/SupplierRegister';
 import ResidentManagement from './pages/admin/Resident';
-
+import UpdatedAttendanceSync from './pages/accountant/UpdatedAttendanceSync';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import Carnivals from './pages/admin/Carnivals';
 import NoticeManagement from './pages/admin/NoticeManagement';
@@ -84,6 +84,7 @@ function App() {
   
   {/* FIXED: Removed the leading slash from googledrive */}
   <Route path="googledrive" element={<AccountantDriveSearch />} />
+   <Route path="updatedattendance" element={<UpdatedAttendanceSync />} />
     <Route path="attendance" element={<AttendanceSync />} />
       <Route path="export" element={<RawDataSync />} />
        <Route path="invoices" element={<InvoiceExtractor />} />
