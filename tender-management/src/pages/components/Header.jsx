@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building, Menu, X, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-
+import Logo from '../../assets/logo.png'
 const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,10 +40,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
         
         {/* Logo Section */}
         <Link to="/" className="flex items-center gap-3 pl-4">
-          <div className="bg-yellow-400 p-2 rounded-full text-neutral-900">
-            <Building className="w-5 h-5" />
-          </div>
-          <span className="font-black text-lg tracking-tight text-neutral-800 hidden sm:block">My Home Avatar</span>
+        <img src={Logo} className='w-[150px]' alt="logo" />
         </Link>
 
         {/* Desktop Links */}
