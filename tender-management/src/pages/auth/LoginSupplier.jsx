@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import { useNavigate, Link } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, Briefcase, ShieldCheck, AlertCircle, Sparkles, Building2 } from 'lucide-react';
-import { authAPI } from '../../api/auth.service';
+import { Lock, Mail, ArrowRight, Briefcase, ShieldCheck, AlertCircle } from 'lucide-react';
+import { authAPI } from '../../api/auth.service'; // Importing the API service we built
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 export default function LoginSupplier() {
- const navigate = useNavigate();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -68,94 +68,85 @@ const handleLogin = async (e) => {
     setLoading(false);
   }
 };
-
   return (
-    <div className="bg-[#fbfbfb] min-h-screen">
+    <div className="min-h-screen bg-neutral-50 flex flex-col">
       <Header />
       
-      <main className="flex min-h-screen pt-20 md:pt-0">
-        
-        {/* LEFT SIDE: CORPORATE ELEGANCE */}
-        <div className="hidden lg:flex lg:w-1/2 bg-[#1f1b16] relative overflow-hidden items-center justify-center p-20">
-          <div className="absolute inset-0 opacity-20">
-            <img 
-              src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200" 
-              className="w-full h-full object-cover" 
-              alt="Corporate Architecture" 
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1f1b16] via-transparent to-transparent"></div>
-          </div>
+      <main className="flex-grow flex items-center justify-center pt-32 pb-20 px-4">
+        <div className="max-w-6xl w-full grid md:grid-cols-2 bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-neutral-100">
           
-          <div className="relative z-10 max-w-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#a88d5e]/30 rounded-full mb-8">
-              <Sparkles className="w-3 h-3 text-[#a88d5e]" />
-              <span className="text-[10px] font-bold text-[#a88d5e] uppercase tracking-[0.2em]">Partner Network</span>
+          {/* Left Side: Visual/Branding */}
+          <div className="hidden md:flex flex-col justify-between p-16 bg-neutral-900 text-white relative">
+            <div className="relative z-10">
+              <div className="bg-yellow-400 text-neutral-900 w-fit px-4 py-1 rounded-full text-xs font-black uppercase mb-8">
+                Supplier Portal
+              </div>
+              <h1 className="text-5xl font-black leading-tight mb-6">
+                GROW YOUR <br /> BUSINESS WITH <br /> <span className="text-yellow-400">AVATAR.</span>
+              </h1>
+              <p className="text-neutral-400 font-bold text-lg max-w-sm">
+                Access exclusive community tenders, submit bids, and track your project performance.
+              </p>
             </div>
-            
-            <h1 className="text-6xl font-serif italic text-white mb-8 leading-tight">
-              Elevating <br />
-              <span className="text-[#a88d5e]">B2B Excellence.</span>
-            </h1>
-            <div className="w-12 h-[1px] bg-[#a88d5e] mb-8"></div>
-            <p className="text-gray-400 font-serif italic text-xl leading-relaxed mb-12">
-              The central gateway for HomeAvatar vendors. Securely manage tenders, proposals, and project lifecycles.
-            </p>
 
-            <div className="space-y-4 border-l border-white/10 pl-6">
-              <div className="flex items-center gap-4 text-white/50">
-                <ShieldCheck className="w-5 h-5 text-[#a88d5e]" />
-                <span className="text-xs font-bold uppercase tracking-widest">Encrypted Tendering</span>
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center gap-3 text-sm font-bold text-neutral-300">
+                <ShieldCheck className="w-5 h-5 text-yellow-400" />
+                Secure e-Tendering System
               </div>
-              <div className="flex items-center gap-4 text-white/50">
-                <Briefcase className="w-5 h-5 text-[#a88d5e]" />
-                <span className="text-xs font-bold uppercase tracking-widest">Performance Metrics</span>
+              <div className="flex items-center gap-3 text-sm font-bold text-neutral-300">
+                <Briefcase className="w-5 h-5 text-yellow-400" />
+                Transparent Awarding Process
               </div>
+            </div>
+
+            {/* Abstract background shape */}
+            <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+                    <path fill="#FFD700" d="M44.7,-76.4C58.8,-69.2,71.8,-59.1,79.6,-45.8C87.4,-32.5,90,-16.3,88.5,-0.9C86.9,14.5,81.2,29.1,72.4,41.4C63.6,53.7,51.8,63.7,38.5,71.2C25.2,78.7,10.4,83.7,-3.9,90.4C-18.1,97.1,-31.7,105.5,-44,101.4C-56.3,97.3,-67.2,80.7,-74.8,65.1C-82.4,49.5,-86.6,34.9,-88.9,20.2C-91.1,5.5,-91.4,-9.3,-86.4,-22.4C-81.4,-35.5,-71.2,-46.8,-59.5,-55.1C-47.8,-63.3,-34.5,-68.5,-21.5,-76.3C-8.4,-84.1,4.4,-94.4,18.1,-93.6C31.8,-92.8,44.7,-83.5,44.7,-76.4Z" transform="translate(100 100)" />
+                </svg>
             </div>
           </div>
-        </div>
 
-        {/* RIGHT SIDE: MINIMALIST LOGIN */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-24 bg-white">
-          <div className="w-full max-w-md">
-            
-            <div className="mb-12">
-              <Building2 className="text-[#a88d5e] mb-4 w-10 h-10" />
-              <h2 className="text-4xl font-serif text-[#1f1b16] mb-4 uppercase tracking-tight">Vendor Login</h2>
-              <p className="text-gray-500 text-sm font-serif italic">Welcome back. Please authenticate to access the bidding room.</p>
+          {/* Right Side: Login Form */}
+          <div className="p-8 md:p-16 flex flex-col justify-center">
+            <div className="mb-10">
+              <h2 className="text-3xl font-black text-neutral-900 mb-2">Welcome Back</h2>
+              <p className="text-neutral-500 font-bold">Please enter your credentials to access bids.</p>
             </div>
 
             {error && (
-              <div className="flex items-center gap-3 bg-red-50 text-red-900 p-4 rounded-lg mb-8 text-xs font-bold uppercase tracking-tighter border-l-4 border-red-500">
-                <AlertCircle className="w-4 h-4" />
+              <div className="flex items-center gap-3 bg-red-50 text-red-600 p-4 rounded-2xl mb-6 font-bold text-sm animate-in fade-in zoom-in duration-300">
+                <AlertCircle className="w-5 h-5" />
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-10">
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Corporate Email</label>
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-neutral-400 ml-1">Official Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a88d5e]" />
+                  <Mail className="absolute left-4 top-4 w-5 h-5 text-neutral-300" />
                   <input 
                     type="email" name="email" required
-                    className="w-full border-b border-gray-100 py-4 pl-8 pr-4 font-serif text-lg focus:outline-none focus:border-[#a88d5e] transition-all placeholder:text-gray-200"
-                    placeholder="partners@company.com"
+                    placeholder="name@company.com"
+                    className="w-full pl-12 pr-4 py-4 bg-neutral-50 border-none rounded-2xl focus:ring-2 focus:ring-yellow-400 font-bold transition-all"
                     value={formData.email} onChange={handleChange}
                   />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Security Key</label>
-                  <Link to="/forgot-password" size="sm" className="text-[9px] font-bold uppercase text-[#a88d5e] tracking-widest hover:text-[#1f1b16] transition-colors">Recover</Link>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                    <label className="text-xs font-black uppercase tracking-widest text-neutral-400">Password</label>
+                    <Link to="/forgot-password" size="sm" className="text-[10px] font-black uppercase text-neutral-400 hover:text-neutral-900 transition-colors">Forgot?</Link>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a88d5e]" />
+                  <Lock className="absolute left-4 top-4 w-5 h-5 text-neutral-300" />
                   <input 
                     type="password" name="password" required
-                    className="w-full border-b border-gray-100 py-4 pl-8 pr-4 font-serif text-lg focus:outline-none focus:border-[#a88d5e] transition-all placeholder:text-gray-200"
                     placeholder="••••••••"
+                    className="w-full pl-12 pr-4 py-4 bg-neutral-50 border-none rounded-2xl focus:ring-2 focus:ring-yellow-400 font-bold transition-all"
                     value={formData.password} onChange={handleChange}
                   />
                 </div>
@@ -164,21 +155,21 @@ const handleLogin = async (e) => {
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full bg-[#1f1b16] text-[#a88d5e] py-6 text-[10px] font-bold uppercase tracking-[0.4em] hover:bg-[#a88d5e] hover:text-[#1f1b16] transition-all duration-500 flex items-center justify-center gap-4 group shadow-2xl shadow-[#1f1b16]/10"
+                className="w-full bg-neutral-900 text-white py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 hover:bg-neutral-800 transition-all shadow-xl shadow-neutral-200"
               >
-                {loading ? "Verifying..." : "Access Portal"}
-                {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />}
+                {loading ? "Authenticating..." : "Login to Dashboard"}
+                {!loading && <ArrowRight className="w-5 h-5 text-yellow-400" />}
               </button>
             </form>
 
-            <div className="mt-16 pt-8 border-t border-gray-50 text-center">
-              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                New vendor? <Link to="/supplier-register" className="text-[#1f1b16] border-b border-[#a88d5e] pb-1 ml-2">Register Partnership</Link>
+            <div className="mt-12 pt-8 border-t border-neutral-100 text-center">
+              <p className="text-neutral-500 font-bold text-sm">
+                New vendor? <Link to="/supplier-register" className="text-neutral-900 hover:text-yellow-600 underline decoration-2 underline-offset-4">Register your business</Link>
               </p>
             </div>
           </div>
-        </div>
 
+        </div>
       </main>
 
       <Footer />

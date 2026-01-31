@@ -15,19 +15,15 @@ export default function ResidentManagement() {
   const [residentContent, setResidentContent] = useState({ blogs: [], items: [], gallery: [] });
   const [contentLoading, setContentLoading] = useState(false);
   const [viewingItem, setViewingItem] = useState(null); 
-// A more robust way to clean text for snippets
-const cleanSnippet = (content) => {
-  if (!content) return "";
-  return content
-    .replace(/<[^>]*>?/gm, '') // Strip all HTML tags
-    .replace(/&nbsp;/g, ' ')  // Replace HTML spaces with real spaces
-    .replace(/&amp;/g, '&')   // Resolve ampersands
-    .trim();
-};
+
   useEffect(() => {
     fetchResidents();
   }, []);
-
+const getCleanText = (html) => {
+  if (!html) return "";
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || "";
+};
   const fetchResidents = async () => {
     try {
       setLoading(true);
@@ -132,18 +128,15 @@ const cleanSnippet = (content) => {
                       />
                    </div>
                 )}
-              {viewingItem.type === 'BLOG' ? (
-      /* Use dangerouslySetInnerHTML for Blogs to render the formatting */
-      <div 
-        className="text-neutral-700 leading-relaxed ql-editor"
-        dangerouslySetInnerHTML={{ __html: viewingItem.content }}
-      />
-    ) : (
-      /* Use standard text for non-HTML fields like marketplace descriptions */
-      <p className="text-neutral-700 font-medium leading-relaxed whitespace-pre-line">
-        {viewingItem.content || viewingItem.description}
-      </p>
-    )}
+                {(viewingItem.content || viewingItem.description) && (
+                  <div className="bg-neutral-50 p-6 rounded-3xl">
+                   <div 
+      className="text-neutral-700 font-medium leading-relaxed html-content-preview"
+      dangerouslySetInnerHTML={{ __html: viewingItem.content || viewingItem.description }}
+    />
+  
+                  </div>
+                )}
               </div>
             </div>
             {viewingItem.status?.toUpperCase() !== 'APPROVED' && viewingItem.status?.toUpperCase() !== 'REJECTED' && (
@@ -232,7 +225,7 @@ const cleanSnippet = (content) => {
 
              <div className="py-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeTab === 'BLOG' && residentContent.blogs.map(blog => (
-                   <ContentCard key={blog.id} title={blog.title} sub={cleanSnippet(blog.content)} status={blog.status} onReview={() => setViewingItem({...blog, type: 'BLOG'})} />
+                   <ContentCard key={blog.id} title={blog.title} sub={getCleanText(blog.content)} status={blog.status} onReview={() => setViewingItem({...blog, type: 'BLOG'})} />
                 ))}
                 {activeTab === 'MARKETPLACE' && residentContent.items.map(item => (
                    <ContentCard key={item.id} title={item.item_name} sub={`₹${item.price}`} status={item.status} onReview={() => setViewingItem({...item, type: 'MARKETPLACE'})} />

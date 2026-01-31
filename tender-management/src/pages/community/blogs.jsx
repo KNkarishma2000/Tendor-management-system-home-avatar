@@ -39,7 +39,10 @@ export default function ResidentBlogs() {
       ['clean']
     ],
   };
-
+const getCleanPreview = (html) => {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || "";
+};
   useEffect(() => {
     if (isAdmin && viewMode === 'mine') {
       setViewMode('all');
@@ -265,11 +268,7 @@ export default function ResidentBlogs() {
                 <div>
                   <h3 className="text-2xl font-black text-slate-800 group-hover:text-blue-600 transition-colors uppercase leading-tight line-clamp-2">{blog.title}</h3>
                 <p className="text-slate-500 text-base line-clamp-3 mt-4 leading-relaxed font-medium">
-  {blog.content
-    .replace(/<[^>]*>?/gm, '') // Strips HTML tags
-    .replace(/&nbsp;/g, ' ')  // Converts &nbsp; to actual spaces
-    .replace(/&amp;/g, '&')   // Converts &amp; to &
-    .trim()}
+  {getCleanPreview(blog.content)}
 </p>
                 </div>
                 
