@@ -1,7 +1,8 @@
 import React from 'react';
 import { Building, Briefcase } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
+import { Link } from 'react-router-dom';
+import Logo from '../../assets/logo.png';
 const Footer = ({ setActivePage }) => {
   const navigate = useNavigate();
 
@@ -12,10 +13,9 @@ const Footer = ({ setActivePage }) => {
         {/* Brand Section */}
         <div className="flex-1 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-            <div className="bg-neutral-900 p-2 rounded-xl">
-              <Building className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-black text-neutral-900 tracking-tighter">My Home Avatar</span>
+             <Link to="/" className="flex items-center gap-3 pl-4">
+        <img src={Logo} className='w-[150px]' alt="logo" />
+        </Link>
           </div>
           <p className="text-neutral-500 font-medium max-w-xs mx-auto md:mx-0">
             Reimagining community living with vibrant spaces and connected hearts.
