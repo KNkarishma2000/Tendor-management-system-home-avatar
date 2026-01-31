@@ -8,6 +8,8 @@ const {
   getRawDataHistory,
   processInvoiceExtraction,
   getInvoiceHistory,
+    getUpdatedAttendanceHistory,
+  processUpdatedAttendance,
  processBankSync,
    getBankHistory,
    processReconciliation,
@@ -42,4 +44,8 @@ router.get('/invoice-history', getInvoiceHistory);
 // 7. Zoho vs Elemensor Mapping (The 30-min process)
 router.post('/zoho-elemensor-process', processZohoVsElemensor);
 router.get('/zoho-elemensor-history', getZohoVsElemensorHistory);
+router.post('/updated-attendance-process', processUpdatedAttendance);
+
+// Route to fetch the history for updated attendance
+router.get('/updated-attendance-history', getUpdatedAttendanceHistory);
 module.exports = router;

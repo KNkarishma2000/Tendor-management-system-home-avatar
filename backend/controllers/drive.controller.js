@@ -422,8 +422,15 @@ const getBankHistory = async (req, res) => {
 // DON'T FORGET TO EXPORT THEM
 const processZohoVsElemensor = async (req, res) => {
   try {
-    // 1. Get data from Frontend (ensure these match your React state)
-    const { filename, elemensor_file, sep_file, zoho_balance_sheet } = req.body;
+    // 1. Destructure based on your required JSON keys
+    const { 
+      filename, 
+      elemensor_file, 
+      sep_file, 
+      zoho_balance_sheet, 
+      start_date, // from frontend
+      end_date    // from frontend
+    } = req.body;
 
     // 2. Create the record in Supabase
     const { data: record, error: dbError } = await supabase
@@ -433,6 +440,8 @@ const processZohoVsElemensor = async (req, res) => {
         elemensor_url: elemensor_file,
         sep_url: sep_file,
         zoho_url: zoho_balance_sheet,
+        start_date, // Store these for history
+        end_date,
         status: 'PROCESSING'
       }])
       .select()
@@ -440,21 +449,22 @@ const processZohoVsElemensor = async (req, res) => {
 
     if (dbError) throw dbError;
 
-    // 3. Trigger n8n with EXACT keys required
+    // 3. Trigger n8n with EXACT keys from your sample
     const n8nUrl = 'https://n8n.srv1267492.hstgr.cloud/webhook/230f20ac-49c7-4cda-9bd1-272fe6c493dd';
     
-    // Updated this part to match your requested JSON structure
     axios.post(n8nUrl, {
-      "file name": filename,                // Added space
-      "elemensor file": elemensor_file,      // Added space
-      "sep file": sep_file,                // Added space
-      "zoho-balance sheet": zoho_balance_sheet, // Added dash
-      "db_record_id": record.id             // Useful for n8n to call you back
+      "file name": filename,
+      "elemensor file": elemensor_file,
+      "sep file": sep_file,
+      "zoho-balance sheet": zoho_balance_sheet,
+      "start Date": start_date, // Matches your JSON key (space + Capital D)
+      "end_date": end_date,     // Matches your JSON key (underscore)
+      "db_record_id": record.id 
     }).catch(err => console.error("n8n Background Error:", err.message));
 
     res.status(200).json({ 
       success: true, 
-      message: "Sync started. takes ~30 mins.",
+      message: "Sync started. Process takes ~30 mins.",
       data: record 
     });
 
@@ -462,7 +472,6 @@ const processZohoVsElemensor = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
-
 const getZohoVsElemensorHistory = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -475,10 +484,92 @@ const getZohoVsElemensorHistory = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+const processUpdatedAttendance = async (req, res) => {
+  try {
+    const { 
+      MTH, hk, mvp, security, Jll, 
+      mth_name, hk_name, mvp_name, security_name, jll 
+    } = req.body;
 
+    // A. Forward to n8n Webhook
+    const n8nUrl = 'https://n8n.srv1267492.hstgr.cloud/webhook/cde55c8b-bf23-4dc1-ac35-43c988e4eccd';
+    
+    const n8nResponse = await axios.post(n8nUrl, {
+      MTH,
+      hk,
+      mvp,
+      security,
+      Jll,
+      mth_name,
+      hk_name,
+      mvp_name,
+      security_name,
+      jll // Note: frontend sends "jll" lowercase for the name as per your JSON
+    }, { timeout: 0 });
+
+    // B. Parse the response (Array handling)
+    const result = Array.isArray(n8nResponse.data) ? n8nResponse.data[0] : n8nResponse.data;
+
+    if (!result) {
+      throw new Error("n8n returned an empty response.");
+    }
+
+    // C. Store in Supabase
+    // table name: updated_attendance_sync (Make sure this table exists)
+    const { data, error } = await supabase
+      .from('updated_attendance_sync')
+      .insert([{
+        mth_name,
+        hk_name,
+        mvp_name,
+        security_name,
+        jll_name: jll,
+        // The output links from n8n
+        mth_output_url: result.mth,
+        hk_output_url: result.hkdm,
+        mvp_output_url: result.mep,
+        security_output_url: result.security,
+        jll_output_url: result.Jll,
+        status: 'COMPLETED'
+      }])
+      .select();
+
+    if (error) throw error;
+
+    res.status(200).json({
+      success: true,
+      message: "Updated Attendance Sync complete!",
+      data: data[0]
+    });
+
+  } catch (error) {
+    console.error('Updated Attendance Error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process updated attendance",
+      error: error.message
+    });
+  }
+};
+
+const getUpdatedAttendanceHistory = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('updated_attendance_sync')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 // Add to module.exports...
 // Update your module exports at the bottom of drive.controller.js
 module.exports = { 
+  getUpdatedAttendanceHistory,
+  processUpdatedAttendance,
   searchDriveFiles, 
   processAttendanceSync, 
   getAttendanceHistory,

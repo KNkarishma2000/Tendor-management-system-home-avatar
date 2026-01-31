@@ -10,7 +10,8 @@ const supabase = require('./config/supabase');
 // List of allowed frontend URLs
 const allowedOrigins = [
   'http://localhost:5173',           // Local development
-  'https://tendor-management-system-home-avata.vercel.app', // Your live Vercel URL
+  'https://tendor-management-system-home-avata.vercel.app',
+  'https://home-avatar.vercel.app',
 ];
 
 const corsOptions = {
