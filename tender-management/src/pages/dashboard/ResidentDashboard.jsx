@@ -31,7 +31,14 @@ export default function ResidentDashboard() {
   useEffect(() => {
     loadResidentData();
   }, []);
-
+const cleanSnippet = (content) => {
+  if (!content) return "";
+  return content
+    .replace(/<[^>]*>?/gm, '') // Remove HTML tags like <p>
+    .replace(/&nbsp;/g, ' ')  // Replace &nbsp; with space
+    .replace(/&amp;/g, '&')   // Fix ampersands
+    .trim();
+};
   const loadResidentData = async () => {
     try {
       setLoading(true);
@@ -172,7 +179,7 @@ export default function ResidentDashboard() {
                   
                   {/* Content Preview */}
                   <p className="text-neutral-500 font-medium line-clamp-2 mb-3 text-sm">
-                    {item.content || item.description}
+                {cleanSnippet(item.content || item.description)}
                   </p>
 
                   <div className="flex items-center justify-between pt-4 border-t border-neutral-50">
@@ -273,4 +280,5 @@ const QuickCard = ({ icon: Icon, label, value, sub, bg, iconColor, onClick }) =>
 const UserIcon = ({ name }) => {
   const initial = name ? name.charAt(0).toUpperCase() : 'R';
   return <span>{initial}</span>;
+
 };
