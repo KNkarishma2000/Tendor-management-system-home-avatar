@@ -249,15 +249,32 @@ exports.getApprovedBlogs = async (req, res) => {
 // --- 6. ADMIN: GET ALL PENDING ---
 // --- 6. ADMIN: GET ALL PENDING (Updated) ---
 // --- 6. ADMIN: GET ALL PENDING (Fixed to include viewable URLs) ---
+// --- 6. ADMIN: GET ALL PENDING (Fixed to include Resident Details) ---
 exports.getPendingContent = async (req, res) => {
   try {
-    const { data: blogs } = await supabase.from('resident_blogs').select('*, residents(full_name)').order('created_at', { ascending: false });
-    const { data: items } = await supabase.from('marketplace_items').select('*, residents(full_name)').order('created_at', { ascending: false });
-    const { data: gallery } = await supabase.from('resident_gallery').select('*, residents(full_name)').order('created_at', { ascending: false });
+    // Select the fields your frontend needs: full_name, block, flat_no
+    const { data: blogs } = await supabase
+      .from('resident_blogs')
+      .select('*, residents(full_name, block, flat_no)')
+      .order('created_at', { ascending: false });
+
+    const { data: items } = await supabase
+      .from('marketplace_items')
+      .select('*, residents(full_name, block, flat_no)')
+      .order('created_at', { ascending: false });
+
+    const { data: gallery } = await supabase
+      .from('resident_gallery')
+      .select('*, residents(full_name, block, flat_no)')
+      .order('created_at', { ascending: false });
 
     const formatData = (list, bucket) => list.map(item => ({
       ...item,
       status: item.status || 'pending', 
+      // Mapping the nested Supabase object to the flat keys your frontend uses
+      resident_name: item.residents?.full_name || 'Admin/Unknown',
+      block: item.residents?.block || 'N/A',
+      flat_no: item.residents?.flat_no || 'N/A',
       image_path: item.image_path ? getPublicUrl(bucket, item.image_path) : null,
       images: item.images ? item.images.map(p => getPublicUrl(bucket, p)) : []
     }));
