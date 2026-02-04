@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users,UserCircle, Tent,MessageSquare,User2, Bell, FileText, Settings, LogOut, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users,UserCircle,CheckCircle, Tent,MessageSquare,User2, Bell, FileText, Settings, LogOut, Briefcase } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authAPI } from '../../../api/auth.service'; // Ensure this path matches your file structure
 
@@ -10,12 +10,15 @@ const MENU_ITEMS = {
     { label: 'Residents', icon: Users, path: '/admin/residents' },
     { label: 'Carnivals', icon: Tent, path: '/admin/carnivals' },
     { label: 'Notices', icon: Bell, path: '/admin/notices' },
+    { label: 'Approvals', icon: CheckCircle, path: '/admin/approvals' },
     { label: 'Tenders', icon: FileText, path: '/admin/tenders' },
     { label: 'Suppliers', icon: FileText, path: '/admin/suppliers' },
      { label: 'Marketplace', icon: Briefcase, path: '/admin/marketplace' },
     { label: 'Events', icon: Tent, path: '/admin/blogs' },
      { label: 'Gallery', icon: Tent, path: '/admin/gallery' },
     { label: 'Support Queries', icon: MessageSquare, path: '/admin/support' },
+    // In Sidebar.jsx MENU_ITEMS.ADMIN
+
       
   ],
   // Add these to MENU_ITEMS in your Sidebar component
@@ -80,55 +83,59 @@ const roleHeadings = {
   };
 
   return (
-    <aside className="w-64 bg-[#1A1A1A] text-white flex flex-col h-screen sticky top-0">
-      <div className="p-6 flex items-center gap-3">
-        <div className="bg-yellow-400 p-2 rounded-lg">
-          <Briefcase className="text-black w-6 h-6" />
-        </div>
-       <span className="font-black text-xl tracking-tighter">
-          {currentHeading}
-        </span>
+ 
+  <aside className="w-64 bg-[#1A1A1A] text-white flex flex-col h-screen sticky top-0 border-r border-neutral-800">
+    <div className="p-6 flex items-center gap-3 flex-shrink-0"> {/* flex-shrink-0 keeps header fixed */}
+      <div className="bg-yellow-400 p-2 rounded-lg">
+        <Briefcase className="text-black w-6 h-6" />
       </div>
+      <span className="font-black text-xl tracking-tighter">
+        {currentHeading}
+      </span>
+    </div>
 
-      <nav className="flex-1 px-4 mt-4 space-y-2 overflow-y-auto">
-        {menu.map((item) => (
-          <Link
-            key={item.label}
-            to={item.path}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
-              location.pathname === item.path 
-              ? 'bg-yellow-400 text-black' 
-              : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
-            }`}
-          >
-            <item.icon size={20} />
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
-      <div className=" border-t border-neutral-800">
-        <div className="p-4 border-t border-neutral-800 space-y-2">
-        {role === 'SUPPLIER' && (
-          <Link
-            to="/supplier/profile"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
-              location.pathname === '/supplier/profile'
-                ? ' text-white'
-                : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
-            }`}
-          >
-            <UserCircle size={20} /> My Profile
-          </Link>
-        )}
-        </div>
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-3 text-red-400 font-bold px-4 py-3 hover:bg-red-500/10 w-full rounded-xl transition-all"
+    {/* Added 'no-scrollbar' class here */}
+    <nav className="flex-1 px-4 mt-4 space-y-2 overflow-y-auto no-scrollbar">
+      {menu.map((item) => (
+        <Link
+          key={item.label}
+          to={item.path}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
+            location.pathname === item.path 
+            ? 'bg-yellow-400 text-black' 
+            : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+          }`}
         >
-          <LogOut size={20} /> Logout
-        </button>
+          <item.icon size={20} />
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+
+    {/* flex-shrink-0 ensures logout section doesn't get squashed */}
+    <div className="border-t border-neutral-800 flex-shrink-0 bg-[#1A1A1A] pb-4">
+      <div className="p-4 space-y-2">
+      {role === 'SUPPLIER' && (
+        <Link
+          to="/supplier/profile"
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
+            location.pathname === '/supplier/profile'
+              ? ' text-white'
+              : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+          }`}
+        >
+          <UserCircle size={20} /> My Profile
+        </Link>
+      )}
+      <button 
+        onClick={handleLogout}
+        className="flex items-center gap-3 text-red-400 font-bold px-4 py-3 hover:bg-red-500/10 w-full rounded-xl transition-all"
+      >
+        <LogOut size={20} /> Logout
+      </button>
       </div>
-    </aside>
+    </div>
+  </aside>
+
   );
 }

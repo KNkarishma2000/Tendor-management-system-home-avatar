@@ -1,29 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Loader2, ArrowLeft, X, Eye, Clock, Ban, CheckCircle, 
-  UserCheck
+  Loader2, ArrowLeft, X, Ban, CheckCircle, Search,
+  UserCheck, Mail, Phone, Home, Calendar, ShieldCheck, Users,
+  ExternalLink, User
 } from 'lucide-react';
-import { authResidentAPI, communityAPI } from '../../api/auth.service';
+import { authResidentAPI } from '../../api/auth.service';
 import toast from 'react-hot-toast';
 
 export default function ResidentManagement() {
   const [residents, setResidents] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  
   const [selectedResident, setSelectedResident] = useState(null);
-  const [activeTab, setActiveTab] = useState('BLOG'); 
-  const [residentContent, setResidentContent] = useState({ blogs: [], items: [], gallery: [] });
-  const [contentLoading, setContentLoading] = useState(false);
-  const [viewingItem, setViewingItem] = useState(null); 
 
   useEffect(() => {
     fetchResidents();
   }, []);
-const getCleanText = (html) => {
-  if (!html) return "";
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || "";
-};
+
   const fetchResidents = async () => {
     try {
       setLoading(true);
@@ -36,284 +29,198 @@ const getCleanText = (html) => {
     }
   };
 
-  const handleViewResident = async (resident) => {
-    setSelectedResident(resident);
-    setContentLoading(true);
-    try {
-      const res = await communityAPI.getPendingContent();
-      const { blogs, items, gallery } = res.data.pending;
-      
-      setResidentContent({
-        blogs: (blogs || []).filter(b => b.resident_id === resident.id),
-        items: (items || []).filter(i => i.resident_id === resident.id),
-        gallery: (gallery || []).filter(g => g.resident_id === resident.id)
-      });
-    } catch (error) {
-      // Ignore if no content found
-    } finally {
-      setContentLoading(false);
-    }
-  };
-
-  // --- UPDATED: RESIDENT ACTIONS (CORRECTED) ---
   const handleResidentAction = async (id, actionType) => {
     try {
-      // 1. Prepare the correct payload for the backend
-      // Backend expects: { action: 'APPROVE' } or { action: 'REJECT' }
       const actionToSend = actionType === 'approve' ? 'APPROVE' : 'REJECT';
-      
-      // 2. Optimistic UI Update (Update the local state immediately)
       const optimisticStatus = actionType === 'approve' ? 'APPROVED' : 'REJECTED';
-      setSelectedResident(prev => ({ ...prev, status: optimisticStatus }));
-
-      // 3. API Call
-      // IMPORTANT: Changed key from 'status' to 'action' to match backend controller
-      await authResidentAPI.approveResident(id, { action: actionToSend });
       
-      toast.success(`Resident ${optimisticStatus === 'APPROVED' ? 'Approved' : 'Rejected'}`);
-
-      // 4. Refresh the main list
+      setSelectedResident(prev => ({ ...prev, status: optimisticStatus }));
+      await authResidentAPI.approveResident(id, { action: actionToSend });
+      toast.success(`Resident ${optimisticStatus}`);
       fetchResidents();
     } catch (error) {
-      console.error(error);
       toast.error(`Failed to ${actionType} resident`);
-      fetchResidents(); // Revert on error
+      fetchResidents(); 
     }
   };
 
-  const handleModerate = async (id, type, status) => {
-    try {
-      // status: true/false for content moderation
-      await communityAPI.moderateContent({ id, type, status });
-      toast.success(`${type} ${status ? 'Approved' : 'Rejected'}`);
-      setViewingItem(null); 
-      handleViewResident(selectedResident); 
-    } catch (error) {
-      toast.error("Moderation action failed");
-    }
-  };
+  const filteredResidents = residents.filter(res => 
+    res.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    res.block.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) return (
-    <div className="flex h-96 items-center justify-center">
-      <Loader2 className="animate-spin text-yellow-400 w-12 h-12" />
+    <div className="flex h-screen items-center justify-center bg-[#fbfbfb]">
+      <div className="text-center">
+        <Loader2 className="animate-spin text-yellow-500 w-12 h-12 mx-auto mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400">Loading Directory</p>
+      </div>
     </div>
   );
 
   return (
-    <div className="relative p-6">
-      
-      {/* 1. PREVIEW MODAL */}
-      {viewingItem && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-8 overflow-y-auto flex-1">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                   <h2 className="text-2xl font-black text-neutral-900 leading-tight">
-                    {viewingItem.title || viewingItem.item_name || viewingItem.caption}
-                  </h2>
-                </div>
-                <button onClick={() => setViewingItem(null)} className="p-2 hover:bg-neutral-100 rounded-full transition-colors">
-                  <X size={24} className="text-neutral-400" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {(viewingItem.image_path || (viewingItem.images && viewingItem.images.length > 0)) && (
-                   <div className="rounded-3xl overflow-hidden bg-neutral-100 aspect-video flex items-center justify-center border border-neutral-100">
-                      <img 
-                        src={viewingItem.image_path || viewingItem.images?.[0]} 
-                        alt="Preview" 
-                        className="w-full h-full object-cover"
-                      />
-                   </div>
-                )}
-                {(viewingItem.content || viewingItem.description) && (
-                  <div className="bg-neutral-50 p-6 rounded-3xl">
-                   <div 
-      className="text-neutral-700 font-medium leading-relaxed html-content-preview"
-      dangerouslySetInnerHTML={{ __html: viewingItem.content || viewingItem.description }}
-    />
-  
-                  </div>
-                )}
-              </div>
-            </div>
-            {viewingItem.status?.toUpperCase() !== 'APPROVED' && viewingItem.status?.toUpperCase() !== 'REJECTED' && (
-              <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex gap-4">
-                <button onClick={() => handleModerate(viewingItem.id, viewingItem.type, true)} className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-200">
-                  <CheckCircle size={20} /> APPROVE CONTENT
-                </button>
-                <button onClick={() => handleModerate(viewingItem.id, viewingItem.type, false)} className="flex-1 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2">
-                  <Ban size={20} /> REJECT CONTENT
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 2. MAIN VIEW */}
+    <div className="min-h-screen bg-[#fbfbfb] p-4 md:p-8">
       {selectedResident ? (
-        <div className="animate-in slide-in-from-right duration-300">
-           <button onClick={() => setSelectedResident(null)} className="flex items-center gap-2 text-neutral-400 hover:text-black font-bold mb-6">
-             <ArrowLeft size={20} /> BACK TO DIRECTORY
-           </button>
-           
-           <div className="bg-white rounded-[2.5rem] p-8 border border-neutral-100 shadow-sm mb-8">
-             <div className="flex flex-col md:flex-row justify-between items-start gap-6">
-               <div className="flex-1">
-                 {/* Status Badge */}
-                 <span className={`inline-block px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest mb-3 ${
+        <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <button 
+            onClick={() => setSelectedResident(null)} 
+            className="flex items-center gap-2 text-neutral-400 hover:text-black font-black text-[10px] tracking-widest mb-8 transition-all group"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> BACK TO DIRECTORY
+          </button>
+          
+          <div className="bg-white rounded-[3rem] shadow-xl shadow-neutral-200/50 border border-neutral-100 overflow-hidden">
+            <div className="flex flex-col lg:flex-row">
+              {/* Profile Main Info */}
+              <div className="flex-1 p-8 md:p-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                     selectedResident.status?.toUpperCase() === 'APPROVED' ? 'bg-green-100 text-green-700' :
                     selectedResident.status?.toUpperCase() === 'REJECTED' ? 'bg-red-100 text-red-700' :
                     'bg-yellow-100 text-yellow-700'
-                 }`}>
-                    {selectedResident.status?.toUpperCase() === 'APPROVED' && <CheckCircle className="inline w-3 h-3 mr-1 -mt-0.5"/>}
-                    {selectedResident.status?.toUpperCase() === 'REJECTED' && <Ban className="inline w-3 h-3 mr-1 -mt-0.5"/>}
+                  }`}>
                     {selectedResident.status || 'PENDING'}
-                 </span>
-                 
-                 <h1 className="text-4xl font-black text-neutral-900 mb-2">{selectedResident.full_name}</h1>
-                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-neutral-500 font-bold">
-                   <span>Unit: <span className="text-neutral-900">{selectedResident.block} - {selectedResident.flat_no}</span></span>
-                   <span>•</span>
-                   <span>{selectedResident.email}</span>
-                   <span>•</span>
-                   <span>{selectedResident.phone_number}</span>
-                 </div>
-               </div>
+                  </span>
+                </div>
+                
+                <h1 className="text-5xl md:text-6xl font-black text-neutral-900 mb-8 tracking-tighter">
+                  {selectedResident.full_name}
+                </h1>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <DetailCard icon={<Home size={20}/>} label="Unit" value={`${selectedResident.block} - ${selectedResident.flat_no}`} color="text-yellow-500" />
+                  <DetailCard icon={<Mail size={20}/>} label="Email" value={selectedResident.users?.email || 'N/A'} color="text-blue-500" />
+                  <DetailCard icon={<Phone size={20}/>} label="Phone" value={selectedResident.mobile_no || 'N/A'} color="text-green-500" />
+                  <DetailCard icon={<Users size={20}/>} label="Family Size" value={`${selectedResident.family_members} Members`} color="text-purple-500" />
+                </div>
+              </div>
 
-               {/* --- ACTION BUTTONS --- */}
-               <div className="flex gap-3 w-full md:w-auto">
-                  {/* APPROVE BUTTON */}
+              {/* Action Sidebar */}
+              <div className="bg-neutral-900 lg:w-80 p-8 md:p-12 flex flex-col justify-center">
+                <p className="text-[10px] font-black text-neutral-500 uppercase mb-8 tracking-[0.3em] text-center">Administrative Control</p>
+                
+                <div className="space-y-4">
                   {selectedResident.status?.toUpperCase() !== 'APPROVED' && (
                     <button 
                       onClick={() => handleResidentAction(selectedResident.id, 'approve')}
-                      className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-wide transition-all shadow-lg shadow-green-200 flex items-center justify-center gap-2"
+                      className="w-full bg-white text-black hover:bg-green-500 hover:text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-3"
                     >
-                      <UserCheck size={20} /> Approve
+                      <UserCheck size={18} /> Approve Resident
                     </button>
                   )}
 
-                  {/* REJECT BUTTON */}
                   {selectedResident.status?.toUpperCase() !== 'REJECTED' && (
                     <button 
                       onClick={() => handleResidentAction(selectedResident.id, 'reject')}
-                      className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-wide transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2"
+                      className="w-full bg-white/5 text-white hover:bg-red-500 py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-3 border border-white/10"
                     >
-                      <Ban size={20} /> Reject
+                      <Ban size={18} /> Deny Access
                     </button>
                   )}
-               </div>
-             </div>
-
-             <div className="h-px bg-neutral-100 my-8"></div>
-
-             {/* TABS */}
-             <div className="flex gap-8 border-b border-neutral-100">
-                {['BLOG', 'MARKETPLACE', 'GALLERY'].map((tab) => {
-                  const key = tab === 'BLOG' ? 'blogs' : tab === 'MARKETPLACE' ? 'items' : 'gallery';
-                  return (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 font-black text-sm relative transition-colors ${activeTab === tab ? 'text-black' : 'text-neutral-400'}`}>
-                      {tab} ({residentContent[key]?.length || 0})
-                      {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-yellow-400 rounded-full" />}
-                    </button>
-                  )
-                })}
-             </div>
-
-             <div className="py-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeTab === 'BLOG' && residentContent.blogs.map(blog => (
-                   <ContentCard key={blog.id} title={blog.title} sub={getCleanText(blog.content)} status={blog.status} onReview={() => setViewingItem({...blog, type: 'BLOG'})} />
-                ))}
-                {activeTab === 'MARKETPLACE' && residentContent.items.map(item => (
-                   <ContentCard key={item.id} title={item.item_name} sub={`₹${item.price}`} status={item.status} onReview={() => setViewingItem({...item, type: 'MARKETPLACE'})} />
-                ))}
-                {activeTab === 'GALLERY' && residentContent.gallery.map(img => (
-                   <ContentCard key={img.id} title={img.caption || "Gallery Image"} sub="Image Submission" status={img.status} onReview={() => setViewingItem({...img, type: 'GALLERY'})} />
-                ))}
-                
-                {residentContent[activeTab === 'BLOG' ? 'blogs' : activeTab === 'MARKETPLACE' ? 'items' : 'gallery'].length === 0 && (
-                  <div className="col-span-2 py-20 text-center bg-neutral-50 rounded-[2rem] border-2 border-dashed border-neutral-100">
-                    <p className="text-neutral-400 font-bold uppercase tracking-widest text-xs">No content found.</p>
-                  </div>
-                )}
-             </div>
-           </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="bg-white rounded-[2.5rem] border border-neutral-100 overflow-hidden shadow-sm">
-           <table className="w-full text-left">
-             <thead>
-               <tr className="border-b border-neutral-50">
-                 <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400">Resident Name</th>
-                 <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400">Unit Number</th>
-                 <th className="px-8 py-6 text-[10px] font-black uppercase text-neutral-400 text-right">Action</th>
-               </tr>
-             </thead>
-             <tbody>
-               {residents.map(res => (
-                 <tr key={res.id} onClick={() => handleViewResident(res)} className="group hover:bg-neutral-50 transition-colors cursor-pointer border-b border-neutral-50">
-                   <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <span className="font-black text-neutral-900 group-hover:text-yellow-600 transition-colors">{res.full_name}</span>
-                        {/* Status Badge in Table */}
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                             res.status?.toUpperCase() === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                             res.status?.toUpperCase() === 'REJECTED' ? 'bg-red-100 text-red-600' : 
-                             'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {res.status || 'Pending'}
-                          </span>
-                      </div>
-                   </td>
-                   <td className="px-8 py-6 font-bold text-neutral-400 uppercase text-xs">{res.block}-{res.flat_no}</td>
-                   <td className="px-8 py-6 text-right font-black text-neutral-300 group-hover:text-black">VIEW PROFILE →</td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+            <div>
+              <h2 className="text-4xl font-black text-neutral-900 tracking-tighter">Resident Directory</h2>
+              <p className="text-neutral-400 font-bold text-sm">Managing {residents.length} registered households</p>
+            </div>
+            
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300 group-focus-within:text-yellow-500 transition-colors" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search by name or block..."
+                className="bg-white border border-neutral-200 rounded-2xl py-4 pl-12 pr-6 w-full md:w-80 focus:outline-none focus:ring-4 focus:ring-yellow-500/10 focus:border-yellow-500 transition-all font-bold text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border border-neutral-100 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-neutral-50/50">
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-neutral-400">Resident Details</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-neutral-400">Unit Number</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-neutral-400">Status</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-neutral-400 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-50">
+                  {filteredResidents.map(res => (
+                    <tr 
+                      key={res.id} 
+                      onClick={() => setSelectedResident(res)} 
+                      className="group hover:bg-neutral-50/80 transition-all cursor-pointer"
+                    >
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
+                            <User size={20} />
+                          </div>
+                          <div>
+                            <p className="font-black text-neutral-900 group-hover:text-yellow-600 transition-colors">{res.full_name}</p>
+                            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">{res.users?.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 font-black text-neutral-500 text-xs">
+                        {res.block} <span className="text-neutral-300 mx-1">/</span> {res.flat_no}
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${
+                           res.status?.toUpperCase() === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                           res.status?.toUpperCase() === 'REJECTED' ? 'bg-red-100 text-red-600' : 
+                           'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {res.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <span className="inline-flex items-center gap-2 text-[10px] font-black text-neutral-300 group-hover:text-black transition-colors uppercase tracking-widest">
+                          View Profile <ExternalLink size={12} />
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredResidents.length === 0 && (
+                <div className="p-20 text-center">
+                  <p className="font-black text-neutral-300 uppercase tracking-widest">No residents found</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-const ContentCard = ({ title, sub, status, onReview }) => {
-  const s = status?.toUpperCase();
-  const isPending = s !== 'APPROVED' && s !== 'REJECTED';
-  const getStatusStyles = () => {
-    if (s === 'APPROVED') return 'bg-green-100 text-green-700 border-green-200';
-    if (s === 'REJECTED') return 'bg-red-100 text-red-700 border-red-200';
-    return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-  };
-
+// Helper Component for UI consistency
+// Find the DetailCard component at the bottom of your Resident.jsx
+function DetailCard({ icon, label, value, color }) {
   return (
-    <div 
-      className="p-5 border border-neutral-100 rounded-3xl bg-white flex justify-between items-center group hover:border-yellow-200 hover:shadow-md transition-all cursor-pointer" 
-      onClick={onReview}
-    >
-      <div className="max-w-[65%]">
-        <div className="flex items-center gap-2 mb-1">
-          <h4 className="font-black text-neutral-900 truncate uppercase text-sm tracking-tight">{title}</h4>
-          <span className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-black border ${getStatusStyles()}`}>
-            {s === 'APPROVED' ? <CheckCircle size={10} /> : s === 'REJECTED' ? <Ban size={10} /> : <Clock size={10} />} {status}
-          </span>
-        </div>
-        <p className="text-xs text-neutral-400 line-clamp-1 font-medium">{sub}</p>
+    <div className="flex items-center gap-5 p-6 bg-neutral-50 rounded-[2rem] hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-neutral-100 min-w-0">
+      <div className={`flex-shrink-0 bg-white p-4 rounded-2xl shadow-sm ${color}`}>
+        {icon}
       </div>
-      
-      {isPending ? (
-        <button className="flex items-center gap-2 bg-yellow-400 px-4 py-2.5 rounded-xl text-[10px] font-black text-black shadow-sm hover:bg-black hover:text-white transition-all uppercase tracking-widest">
-          <Eye size={14} /> Review
-        </button>
-        ) : (
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">Processed</span>
-          <span className="text-[8px] font-bold text-neutral-400">Click to View</span>
-        </div>
-      )}
+      <div className="min-w-0 flex-1"> {/* min-w-0 is critical for text wrapping in flexbox */}
+        <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-1">
+          {label}
+        </p>
+        <p className="font-bold text-neutral-900 leading-tight break-all text-sm md:text-base">
+          {value}
+        </p>
+      </div>
     </div>
   );
-};
+}

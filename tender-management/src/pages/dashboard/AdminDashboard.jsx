@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Tent, FileText, Bell, Send, Loader2, ArrowUpRight } from 'lucide-react';
-// Importing the API services you provided
+import { useNavigate } from 'react-router-dom';
 import { 
-  communityAPI, 
-  authResidentAPI, 
-  tenderAdminAPI 
-} from '../../api/auth.service'; 
-// import toast from 'react-hot-toast';
+  Users, FileText, Bell, ArrowUpRight, 
+  MessageSquare, Briefcase, CheckCircle, Loader2 
+} from 'lucide-react';
+import { communityAPI, authResidentAPI, tenderAdminAPI, supportAPI } from '../../api/auth.service';
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
-    residentCount: 0,
-    carnivalCount: 0,
-    tenderCount: 0,
-    noticeCount: 0,
-    recentActivity: []
+    pendingResidents: 0,
+    activeTenders: 0,
+    unreadSupport: 0,
+    pendingContent: 0,
+    totalNewBids: 0, // Track bid count
+    notifications: []
   });
 
   useEffect(() => {
@@ -23,186 +23,201 @@ export default function AdminDashboard() {
   }, []);
 
   const fetchDashboardStats = async () => {
-  try {
-    setLoading(true);
-    
-    // 1. Fire off the requests
-    const [resResp, carnResp, tendResp, noteResp] = await Promise.all([
-      authResidentAPI.getPendingResidents(),
-      communityAPI.getCarnivals(),
-      tenderAdminAPI.getAllTenders(),
-      communityAPI.getNotices()
-    ]);
+    try {
+      setLoading(true);
+      
+      const [resResp, tendResp, contentResp, supportResp] = await Promise.all([
+        authResidentAPI.getPendingResidents(),
+        tenderAdminAPI.getAllTenders(),
+        communityAPI.getPendingContent(), 
+        supportAPI.getAdminInbox()         
+      ]);
 
-    // 2. LOG THE DATA to see exactly what is coming back
-    console.log("Residents Raw:", resResp.data); 
-    
-    // 3. Handle different response shapes safely
-    // Note: If backend returns { data: [...] }, we need resResp.data.data
-    // If backend returns [...], we need resResp.data
-    const residentsArr = Array.isArray(resResp.data) ? resResp.data : (resResp.data.data || []);
-    const carnivalsArr = Array.isArray(carnResp.data) ? carnResp.data : (carnResp.data.data || []);
-    const tendersArr = Array.isArray(tendResp.data) ? tendResp.data : (tendResp.data.data || []);
-    const noticesArr = Array.isArray(noteResp.data) ? noteResp.data : (noteResp.data.data || []);
+      // 1. TENDER & BIDS LOGIC
+      const allTenders = tendResp.data?.data || [];
+      const tendersWithBids = allTenders.filter(t => (t.bid_count || 0) > 0);
+      const totalBidsReceived = tendersWithBids.reduce((sum, t) => sum + (t.bid_count || 0), 0);
 
-    const allActivities = [
-      ...carnivalsArr.map(c => ({ ...c, type: 'carnival', title: c.name, date: c.created_at })),
-      ...tendersArr.map(t => ({ ...t, type: 'tender', title: t.title, date: t.created_at })),
-      ...noticesArr.map(n => ({ ...n, type: 'notice', title: n.title, date: n.created_at }))
-    ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
+      // 2. CONTENT MODERATION LOGIC (Filtered for 'pending' status)
+      const pendingData = contentResp.data?.pending || {};
+      const pendingBlogs = (pendingData.blogs || []).filter(b => b.status?.toLowerCase() === 'pending');
+      const pendingItems = (pendingData.items || []).filter(i => i.status?.toLowerCase() === 'pending');
+      const pendingGallery = (pendingData.gallery || []).filter(g => g.status?.toLowerCase() === 'pending');
+      const totalPendingContent = pendingBlogs.length + pendingItems.length + pendingGallery.length;
 
-    setData({
-      residentCount: residentsArr.length,
-      carnivalCount: carnivalsArr.length,
-      tenderCount: tendersArr.length,
-      noticeCount: noticesArr.length,
-      recentActivity: allActivities
-    });
+      // 3. RESIDENTS & SUPPORT PARSING
+      const residentsArr = Array.isArray(resResp.data) ? resResp.data : (resResp.data.data || []);
+      const supportConversations = Array.isArray(supportResp.data) ? supportResp.data : (supportResp.data.data || []);
 
-  } catch (error) {
-    console.error("Fetch Error:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+      // 4. GENERATE DYNAMIC ALERTS
+      const alerts = [];
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-yellow-400" />
-      </div>
-    );
-  }
+      if (residentsArr.length > 0) {
+        alerts.push({
+          id: 'res_pending',
+          title: 'Resident Verification',
+          description: `${residentsArr.length} registration requests pending`,
+          path: '/admin/residents',
+          icon: Users,
+          color: 'text-blue-500',
+          bgColor: 'bg-blue-50'
+        });
+      }
+
+      if (totalBidsReceived > 0) {
+        alerts.push({
+          id: 'tender_bids',
+          title: 'New Tender Bids',
+          description: `${totalBidsReceived} bids received across ${tendersWithBids.length} tenders`,
+          path: '/admin/tenders',
+          icon: Briefcase,
+          color: 'text-emerald-500',
+          bgColor: 'bg-emerald-50'
+        });
+      }
+
+      if (totalPendingContent > 0) {
+        alerts.push({
+          id: 'content_pending',
+          title: 'Content Moderation',
+          description: `${totalPendingContent} items waiting in approvals queue`,
+          path: '/admin/approvals',
+          icon: CheckCircle,
+          color: 'text-orange-500',
+          bgColor: 'bg-orange-50'
+        });
+      }
+
+      if (supportConversations.length > 0) {
+        alerts.push({
+          id: 'support_msg',
+          title: 'Support Inbox',
+          description: `You have ${supportConversations.length} active support queries`,
+          path: '/admin/support',
+          icon: MessageSquare,
+          color: 'text-purple-500',
+          bgColor: 'bg-purple-50'
+        });
+      }
+
+      setData({
+        pendingResidents: residentsArr.length,
+        activeTenders: allTenders.length,
+        unreadSupport: supportConversations.length,
+        pendingContent: totalPendingContent,
+        totalNewBids: totalBidsReceived,
+        notifications: alerts
+      });
+
+    } catch (error) {
+      console.error("Dashboard Fetch Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex h-[60vh] items-center justify-center">
+      <Loader2 className="w-12 h-12 animate-spin text-yellow-400" />
+    </div>
+  );
 
   return (
-    <div className="animate-in fade-in duration-500">
-      <header className="mb-8 flex justify-between items-center">
+    <div className="animate-in fade-in duration-500 space-y-8 p-2">
+      <header className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black text-neutral-900 uppercase tracking-tight">Overview</h1>
-          <p className="text-neutral-400 font-bold text-sm">Real-time community metrics</p>
+          <h1 className="text-3xl font-black text-neutral-900 tracking-tighter uppercase italic">Mission Control</h1>
+          <p className="text-neutral-400 font-bold text-sm">Real-time administration hub</p>
         </div>
-        <button 
-          onClick={fetchDashboardStats}
-          className="p-2 hover:rotate-180 transition-all duration-500 text-neutral-400"
-        >
+        <button onClick={fetchDashboardStats} className="p-3 bg-white border border-neutral-200 rounded-2xl hover:bg-neutral-50 transition-all shadow-sm">
           <ArrowUpRight size={20} />
         </button>
       </header>
 
-      {/* 4-Column Stat Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Grid of 4 key numbers */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           icon={Users} 
           label="Pending Residents" 
-          value={data.residentCount} 
-          growth={data.residentCount > 0 ? "Action Required" : "All Clear"} 
-          color="text-blue-600"
+          value={data.pendingResidents} 
+          urgent={data.pendingResidents > 0}
+          onClick={() => navigate('/admin/residents')}
         />
         <StatCard 
-          icon={Tent} 
-          label="Upcoming Carnivals" 
-          value={data.carnivalCount} 
+          icon={CheckCircle} 
+          label="Pending Content" 
+          value={data.pendingContent} 
+          urgent={data.pendingContent > 0}
+          onClick={() => navigate('/admin/approvals')}
+        />
+        <StatCard 
+          icon={Briefcase} 
+          label="New Bids" 
+          value={data.totalNewBids} 
+          urgent={data.totalNewBids > 0}
+          onClick={() => navigate('/admin/tenders')}
         />
         <StatCard 
           icon={FileText} 
           label="Active Tenders" 
-          value={data.tenderCount} 
-        />
-        <StatCard 
-          icon={Bell} 
-          label="Global Notices" 
-          value={data.noticeCount} 
+          value={data.activeTenders} 
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activity Table */}
-        <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 shadow-sm border border-neutral-100">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-black italic">Recent Activity</h3>
-            <button className="text-sm font-bold text-neutral-400 hover:text-black transition-colors">View All</button>
-          </div>
+      <div className="grid grid-cols-1 gap-8">
+        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-neutral-100 min-h-[400px]">
+          <h3 className="text-xl font-black mb-8 flex items-center gap-2 italic uppercase tracking-tight">
+            <Bell className="text-yellow-500" size={24} /> Immediate Attention Required
+          </h3>
           
-          <div className="space-y-6">
-            {data.recentActivity.length > 0 ? (
-              data.recentActivity.map((item, index) => (
-                <ActivityItem 
-                  key={index}
-                  icon={item.type === 'carnival' ? Tent : item.type === 'tender' ? FileText : Bell} 
-                  color={item.type === 'carnival' ? "bg-yellow-100" : item.type === 'tender' ? "bg-blue-100" : "bg-red-100"} 
-                  text={item.title || item.name || "New Update Posted"} 
-                  time={item.date || "Just now"} 
-                />
+          <div className="space-y-4">
+            {data.notifications.length > 0 ? (
+              data.notifications.map((note) => (
+                <div 
+                  key={note.id}
+                  onClick={() => navigate(note.path)}
+                  className={`flex items-center justify-between p-6 ${note.bgColor} border border-transparent hover:border-neutral-200 rounded-[2rem] cursor-pointer transition-all group hover:shadow-md`}
+                >
+                  <div className="flex items-center gap-5">
+                    <div className="bg-white p-4 rounded-2xl shadow-sm">
+                      <note.icon size={24} className={note.color} />
+                    </div>
+                    <div>
+                      <p className="font-black text-neutral-900 text-lg tracking-tight">{note.title}</p>
+                      <p className="text-sm font-bold text-neutral-500">{note.description}</p>
+                    </div>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
+                    <ArrowUpRight size={20} className="text-neutral-900" />
+                  </div>
+                </div>
               ))
             ) : (
-              <div className="text-center py-10 text-neutral-400 font-bold italic">
-                No recent activity to show.
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="bg-green-50 text-green-500 p-6 rounded-full mb-4 animate-bounce">
+                  <CheckCircle size={48} />
+                </div>
+                <p className="font-black text-neutral-900 text-xl tracking-tight uppercase italic">Everything Clear</p>
+                <p className="text-neutral-400 font-bold text-sm">All approvals and bids are up to date.</p>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Maintenance Funds Card */}
-        <div className="bg-[#1A1A1A] rounded-[2.5rem] p-8 text-white flex flex-col justify-between min-h-[400px]">
-          <div>
-            <h3 className="text-xl font-bold mb-1">Maintenance Funds</h3>
-            <p className="text-neutral-400 text-sm font-medium">Collection Status (Jan)</p>
-          </div>
-          
-          <div className="flex justify-center py-8">
-            <div className="relative w-40 h-40 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-neutral-800" />
-                <circle cx="80" cy="80" r="70" stroke="#FFD700" strokeWidth="12" fill="transparent" strokeDasharray="440" strokeDashoffset="110" strokeLinecap="round" className="transition-all duration-1000 ease-out" />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-black">75%</span>
-                <span className="text-[10px] uppercase font-bold text-neutral-400">Collected</span>
-              </div>
-            </div>
-          </div>
-
-          <button className="w-full bg-yellow-400 text-black py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-yellow-500 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-yellow-400/20">
-            Send Reminders <Send size={18} />
-          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// --- Internal Components ---
-
-const StatCard = ({ icon: Icon, label, value, growth, color = "text-green-600" }) => (
-  <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-neutral-100 group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-    <div className="flex justify-between items-start mb-4">
-      <div className="p-3 bg-neutral-50 rounded-2xl text-neutral-900 group-hover:bg-yellow-400 group-hover:rotate-12 transition-all duration-300">
-        <Icon size={24} />
-      </div>
-      {growth && (
-        <span className={`text-[10px] font-black ${color} bg-neutral-50 px-2 py-1 rounded-full uppercase tracking-tighter`}>
-          {growth}
-        </span>
-      )}
+const StatCard = ({ icon: Icon, label, value, urgent, onClick }) => (
+  <div 
+    onClick={onClick}
+    className={`bg-white p-7 rounded-[2.5rem] shadow-sm border border-neutral-100 transition-all group ${onClick ? 'cursor-pointer hover:border-yellow-400 hover:shadow-xl' : ''}`}
+  >
+    <div className={`p-4 rounded-2xl w-fit mb-6 transition-all ${urgent ? 'bg-red-50 text-red-500 group-hover:bg-red-500 group-hover:text-white' : 'bg-neutral-50 text-neutral-900 group-hover:bg-yellow-400'}`}>
+      <Icon size={24} />
     </div>
-    <div className="text-4xl font-black mb-1 text-neutral-900">{value}</div>
-    <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest">{label}</div>
-  </div>
-);
-
-const ActivityItem = ({ icon: Icon, color, text, time }) => (
-  <div className="flex items-center justify-between group cursor-pointer p-2 hover:bg-neutral-50 rounded-2xl transition-all">
-    <div className="flex items-center gap-4">
-      <div className={`p-3 rounded-2xl ${color} group-hover:scale-110 transition-transform`}>
-        <Icon size={20} className="text-neutral-900" /> 
-      </div>
-      <div>
-        <p className="font-black text-neutral-900 group-hover:text-yellow-600 transition-colors line-clamp-1">{text}</p>
-        <p className="text-xs font-bold text-neutral-400">{time}</p>
-      </div>
-    </div>
-    <div className="text-neutral-300 group-hover:text-neutral-900 group-hover:translate-x-1 transition-all">
-        <Send size={16} className="rotate-45" />
-    </div>
+    <div className="text-6xl font-black mb-1 text-neutral-900 tracking-tighter italic">{value}</div>
+    <div className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">{label}</div>
+    {urgent && <div className="mt-4 text-[10px] font-black text-red-500 bg-red-50 px-3 py-1 rounded-full w-fit animate-pulse">ACTION REQUIRED</div>}
   </div>
 );

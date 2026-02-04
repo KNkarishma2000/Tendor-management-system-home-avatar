@@ -4,13 +4,13 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import PublicLayout from './layouts/PublicLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 import { Toaster } from 'react-hot-toast';
-
+import UpdatedAttendanceSync from './pages/accountant/UpdatedAttendanceSync';
 import Login from './pages/auth/Login';
 import LoginSupplier from './pages/auth/LoginSupplier';
 import RegisterResident from './pages/auth/ResidentRegister';
 import RegisterSupplier from './pages/auth/SupplierRegister';
 import ResidentManagement from './pages/admin/Resident';
-import UpdatedAttendanceSync from './pages/accountant/UpdatedAttendanceSync';
+
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import Carnivals from './pages/admin/Carnivals';
 import NoticeManagement from './pages/admin/NoticeManagement';
@@ -29,7 +29,7 @@ import SupplierTenderPortal from './pages/tenders/SupplierTenderPortal';
 import PublicTenderList from './layouts/PublicListTenders';
 import PublicTenderDetails from './layouts/TenderDetails';
 import AllCarnivals from './layouts/AllCarnivals';
-import AllBlogs from './layouts/Allblogs';
+import AllBlogs from './layouts/AllBlogs';
 import BlogDetails from './layouts/BlogDetails';
 import AllGallery from './layouts/AllGallery';
 import ResidentNotices from './pages/community/NoticeBoard';
@@ -50,6 +50,10 @@ import ZohoVsElemensor from './pages/accountant/ZohoVsElemensor';
 import AdminRegisterUser from './pages/admin/Register';
 import SupplierProfile from './pages/tenders/SupplierProfile';
 
+import WindsorLiving from './layouts/PublicLayout';
+import Marketplace from './layouts/MarketPlace';
+import ContentModeration from './pages/admin/submissions';
+
 
 
 function App() {
@@ -63,13 +67,14 @@ function App() {
     <Routes>
       
       {/* Public Routes */}
-      <Route path="/" element={<PublicLayout />} />
+      <Route path="/" element={<WindsorLiving />} />
       <Route path="/login" element={<Login />} />
         <Route path="/notices" element={<Notices />} />
       
  <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/tenders" element={<PublicTenderList />} />
       <Route path="/supplier-login" element={<LoginSupplier />} />
+            <Route path="/marketplace" element={<Marketplace />} />
        <Route path="/gallery" element={<AllGallery />} />
             <Route path="/carnivals" element={<AllCarnivals />} />
       <Route path="/resident-register" element={<RegisterResident />} />
@@ -84,7 +89,7 @@ function App() {
   
   {/* FIXED: Removed the leading slash from googledrive */}
   <Route path="googledrive" element={<AccountantDriveSearch />} />
-   <Route path="updatedattendance" element={<UpdatedAttendanceSync />} />
+    <Route path="updatedattendance" element={<UpdatedAttendanceSync />} />
     <Route path="attendance" element={<AttendanceSync />} />
       <Route path="export" element={<RawDataSync />} />
        <Route path="invoices" element={<InvoiceExtractor />} />
@@ -104,6 +109,7 @@ function App() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="carnivals" element={<Carnivals />} />
         <Route path="residents" element={<ResidentManagement />} /> 
+         <Route path="approvals" element={<ContentModeration />} /> 
         <Route path="notices" element={<NoticeManagement />} /> 
          <Route path="suppliers" element={<SupplierDirectory />} /> 
          // Example Route setup

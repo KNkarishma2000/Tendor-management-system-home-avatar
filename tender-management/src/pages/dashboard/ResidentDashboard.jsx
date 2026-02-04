@@ -24,13 +24,6 @@ export default function ResidentDashboard() {
     galleryCount: 0,
     upcomingEvents: 0
   });
-
-  const [feed, setFeed] = useState([]);
-  const [notices, setNotices] = useState([]);
-
-  useEffect(() => {
-    loadResidentData();
-  }, []);
 const cleanSnippet = (content) => {
   if (!content) return "";
   return content
@@ -39,6 +32,13 @@ const cleanSnippet = (content) => {
     .replace(/&amp;/g, '&')   // Fix ampersands
     .trim();
 };
+  const [feed, setFeed] = useState([]);
+  const [notices, setNotices] = useState([]);
+
+  useEffect(() => {
+    loadResidentData();
+  }, []);
+
   const loadResidentData = async () => {
     try {
       setLoading(true);
