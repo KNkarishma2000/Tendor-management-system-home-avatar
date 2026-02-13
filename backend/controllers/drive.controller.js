@@ -482,6 +482,7 @@ const getBankHistory = async (req, res) => {
 // DON'T FORGET TO EXPORT THEM
 const processZohoVsElemensor = async (req, res) => {
   let initialRecordId = null;
+
   try {
     const { filename, elemensor_file, zoho_balance_sheet, start_date, end_date } = req.body;
 
@@ -489,8 +490,12 @@ const processZohoVsElemensor = async (req, res) => {
     const { data: initialData, error: initialError } = await supabase
       .from('zoho_elemensor_syncs')
       .insert([{
-        filename, elemensor_url: elemensor_file, zoho_url: zoho_balance_sheet,
-        start_date, end_date, status: 'PENDING'  // Start as PENDING
+        filename,
+        elemensor_url: elemensor_file,
+        zoho_url: zoho_balance_sheet,
+        start_date,
+        end_date,
+        status: 'PENDING'
       }])
       .select()
       .single();
@@ -500,57 +505,75 @@ const processZohoVsElemensor = async (req, res) => {
 
     // 2. Call n8n
     const n8nUrl = 'https://n8n.srv1267492.hstgr.cloud/webhook/230f20ac-49c7-4cda-9bd1-272fe6c493dd';
+
     const n8nResponse = await axios.post(n8nUrl, {
-      "file name": filename, "elemensor file": elemensor_file,
-      "zoho-balance sheet": zoho_balance_sheet, "start Date": start_date, "end_date": end_date
+      "file name": filename,
+      "elemensor file": elemensor_file,
+      "zoho-balance sheet": zoho_balance_sheet,
+      "start Date": start_date,
+      "end_date": end_date
     }, { timeout: 0 });
 
-    // 3. Check HTTP status first
     if (n8nResponse.status !== 200) {
-      throw new Error(`n8n HTTP ${n8nResponse.status}: ${n8nResponse.statusText}`);
+      throw new Error(`n8n HTTP ${n8nResponse.status}`);
     }
 
-    const result = Array.isArray(n8nResponse.data) ? n8nResponse.data[0] : n8nResponse.data;
+    // 3. Normalize response (handles array OR object)
+    const result = Array.isArray(n8nResponse.data)
+      ? n8nResponse.data[0]
+      : n8nResponse.data;
 
-    // 4. Handle n8n status (from Respond to Webhook node)
-    let dbStatus = 'FAILED';
-    let outputUrl = null;
-    if (result && typeof result === 'object') {
-      const n8nStatus = result.status?.toLowerCase() || 'unknown';
-      if (n8nStatus === 'success' || n8nStatus === 'completed') {
-        outputUrl = result.output_url || result.final_link || result.spreadsheet_url || Object.values(result).find(v => typeof v === 'string' && v.includes('spreadsheet'));
-        dbStatus = outputUrl ? 'COMPLETED' : 'FAILED';
-      } else if (n8nStatus === 'pending') {
-        dbStatus = 'PENDING';
-      } else if (n8nStatus === 'canceled' || n8nStatus === 'error' || n8nStatus === 'stopped') {
-        dbStatus = 'CANCELED';
-      }
-    }
+    console.log("Zoho n8n response:", result);
 
-    // 5. Update DB with status and link
+    // 4. Extract spreadsheet URL (YOUR FORMAT)
+    let outputUrl =
+      result?.spreadsheetUrl ||
+      result?.spreadsheet_url ||
+      result?.output_url ||
+      result?.final_link ||
+      Object.values(result || {}).find(
+        v => typeof v === 'string' && v.includes('docs.google.com')
+      );
+
+    const dbStatus = outputUrl ? 'COMPLETED' : 'FAILED';
+
+    // 5. Update DB
     const { data: finalData, error: finalError } = await supabase
       .from('zoho_elemensor_syncs')
-      .update({ output_url: outputUrl, status: dbStatus })
+      .update({
+        output_url: outputUrl,
+        status: dbStatus
+      })
       .eq('id', initialRecordId)
       .select();
 
     if (finalError) throw finalError;
 
-    res.status(200).json({ 
-      success: true, 
-      status: dbStatus, 
+    res.status(200).json({
+      success: true,
+      status: dbStatus,
       data: finalData[0],
-      n8n_raw: result  // For debugging
+      n8n_raw: result
     });
 
   } catch (error) {
     console.error('Zoho-Elemensor Error:', error.message);
+
     if (initialRecordId) {
-      await supabase.from('zoho_elemensor_syncs').update({ status: 'FAILED' }).eq('id', initialRecordId);
+      await supabase
+        .from('zoho_elemensor_syncs')
+        .update({ status: 'FAILED' })
+        .eq('id', initialRecordId);
     }
-    res.status(500).json({ success: false, error: "Process failed", details: error.message });
+
+    res.status(500).json({
+      success: false,
+      error: "Process failed",
+      details: error.message
+    });
   }
 };
+
 
 const getZohoVsElemensorHistory = async (req, res) => {
   try {
