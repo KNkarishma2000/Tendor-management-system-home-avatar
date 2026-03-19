@@ -42,6 +42,7 @@ router.post('/carnivals', protect, authorize('ADMIN'), adminCtrl.createCarnival)
 router.post('/notices', protect, authorize('ADMIN'), adminCtrl.createNotice);
 
 // Content Moderation (Removed MC)
+router.get('/home-dashboard', adminCtrl.getHomeDashboard);
 router.put('/moderate', protect, authorize('ADMIN'), resCtrl.moderateContent);
 router.get('/admin/pending-content', protect, authorize('ADMIN'), resCtrl.getPendingContent);
 // Shared Deletion (Security logic handled in Controller)
