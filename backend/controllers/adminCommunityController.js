@@ -122,3 +122,28 @@ exports.deleteCarnival = async (req, res) => {
     });
   }
 };
+exports.getHomeDashboard = async (req, res) => {
+  try {
+    // We use Promise.all to fetch all data simultaneously (much faster)
+    const [notices, blogs, carnivals, gallery, marketplace] = await Promise.all([
+      supabase.from('notices').select('*').order('display_date', { ascending: false }).limit(4),
+      supabase.from('blogs').select('*').eq('status', 'APPROVED').order('created_at', { ascending: false }).limit(3),
+      supabase.from('carnivals').select('*').order('event_date', { ascending: true }).limit(3),
+      supabase.from('gallery').select('*').order('created_at', { ascending: false }).limit(6),
+      supabase.from('marketplace').select('*').order('created_at', { ascending: false }).limit(3)
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        notices: notices.data || [],
+        blogs: blogs.data || [],
+        carnivals: carnivals.data || [],
+        gallery: gallery.data || [],
+        marketplace: marketplace.data || []
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
