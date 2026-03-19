@@ -124,26 +124,63 @@ exports.deleteCarnival = async (req, res) => {
 };
 exports.getHomeDashboard = async (req, res) => {
   try {
-    // We use Promise.all to fetch all data simultaneously (much faster)
-    const [notices, blogs, carnivals, gallery, marketplace] = await Promise.all([
-      supabase.from('notices').select('*').order('display_date', { ascending: false }).limit(4),
-      supabase.from('blogs').select('*').eq('status', 'APPROVED').order('created_at', { ascending: false }).limit(3),
-      supabase.from('carnivals').select('*').order('event_date', { ascending: true }).limit(3),
-      supabase.from('gallery').select('*').order('created_at', { ascending: false }).limit(6),
-      supabase.from('marketplace').select('*').order('created_at', { ascending: false }).limit(3)
-    ]);
+    // 1. Fetch data from Supabase
+    // Using individual awaits or wrap in try/catch to see exactly which one fails
+    const { data: notices, error: nErr } = await supabase.from('notices').select('*').order('display_date', { ascending: false }).limit(4);
+    const { data: blogs, error: bErr } = await supabase.from('resident_blogs').select('*').eq('status', 'approved').order('created_at', { ascending: false }).limit(3);
+    const { data: carnivals, error: cErr } = await supabase.from('carnivals').select('*').order('event_date', { ascending: true }).limit(3);
+    const { data: gallery, error: gErr } = await supabase.from('resident_gallery').select('*').eq('status', 'approved').order('created_at', { ascending: false }).limit(6);
+    const { data: marketplace, error: mErr } = await supabase.from('marketplace_items').select('*').eq('status', 'approved').order('created_at', { ascending: false }).limit(3);
 
+    // Check for critical table errors
+    if (nErr || bErr || cErr || gErr || mErr) {
+      console.error("Supabase Error:", { nErr, bErr, cErr, gErr, mErr });
+    }
+
+    // 2. Internal Helper to generate the URL (avoids "undefined" errors)
+    const buildUrl = (bucket, path) => {
+      if (!path) return null;
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return data?.publicUrl || null;
+    };
+
+    // 3. Safely Map Data
+    const formattedGallery = (gallery || []).map(item => ({
+      ...item,
+      image_path: buildUrl('resident-gallery', item.image_path)
+    }));
+
+    const formattedMarketplace = (marketplace || []).map(item => ({
+      ...item,
+      image_path: buildUrl('marketplace-items', item.image_path)
+    }));
+
+    const formattedBlogs = (blogs || []).map(blog => ({
+      ...blog,
+      // If blog.images is a string (Postgres array), handle it safely
+      images: Array.isArray(blog.images) 
+        ? blog.images.map(path => buildUrl('resident-blogs', path)) 
+        : []
+    }));
+
+    // 4. Send Response
     res.status(200).json({
       success: true,
       data: {
-        notices: notices.data || [],
-        blogs: blogs.data || [],
-        carnivals: carnivals.data || [],
-        gallery: gallery.data || [],
-        marketplace: marketplace.data || []
+        notices: notices || [],
+        blogs: formattedBlogs,
+        carnivals: carnivals || [],
+        gallery: formattedGallery,
+        marketplace: formattedMarketplace
       }
     });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Dashboard Crash:", error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal Server Error", 
+      error: error.message 
+    });
   }
 };
